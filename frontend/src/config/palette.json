@@ -1,0 +1,83 @@
+{
+  "brand": "Dataduca",
+  "palette": {
+    "primary": {
+      "name": "Verde Pastel",
+      "hex": "#B8E3C0",
+      "description": "Representa aprendizado, crescimento e frescor."
+    },
+    "secondary": {
+      "name": "Magenta Pastel",
+      "hex": "#E6A8D7",
+      "description": "Representa criatividade, imaginação e ludicidade."
+    },
+    "neutral": {
+      "name": "Cinza Médio",
+      "hex": "#6E6E6E",
+      "description": "Estabilidade, seriedade e contraste suave com as cores vivas."
+    },
+    "interface": {
+      "background_main": {
+        "hex": "#F5F6F7",
+        "description": "Fundo principal da interface, ideal para dashboards e áreas de conteúdo."
+      },
+      "background_card": {
+        "hex": "#FFFFFF",
+        "description": "Fundo de cards e componentes destacados."
+      },
+      "text_primary": {
+        "hex": "#333333",
+        "description": "Texto principal, ótimo contraste sobre fundos claros."
+      },
+      "text_secondary": {
+        "hex": "#777777",
+        "description": "Subtítulos e descrições, contraste suave."
+      },
+      "borders": {
+        "hex": "#D9D9D9",
+        "description": "Bordas e divisores discretos."
+      }
+    },
+    "feedback": {
+      "action_primary": {
+        "hex": "#E6A8D7",
+        "description": "Ação principal (botões, links)."
+      },
+      "action_secondary": {
+        "hex": "#B8E3C0",
+        "description": "Ação secundária (hover ou alternativa)."
+      },
+      "success": {
+        "hex": "#A4D4AE",
+        "description": "Feedback positivo, indica progresso ou acertos."
+      },
+      "warning": {
+        "hex": "#F6E5A1",
+        "description": "Alertas leves e não urgentes."
+      },
+      "error": {
+        "hex": "#F2B8C6",
+        "description": "Feedback de erro suave e amigável."
+      }
+    },
+    "gradients": {
+      "main": {
+        "type": "linear",
+        "angle": "90deg",
+        "colors": ["#B8E3C0", "#E6A8D7"],
+        "description": "Transição entre razão e imaginação."
+      },
+      "secondary": {
+        "type": "linear",
+        "angle": "135deg",
+        "colors": ["#E6A8D7", "#F5F6F7"],
+        "description": "Gradiente suave para fundos hero ou cards."
+      }
+    }
+  },
+  "style_emotion": {
+    "keywords": ["inteligência", "empatia", "aprendizado", "tecnologia suave"],
+    "description": "A paleta comunica inteligência afetiva — tecnologia com empatia. É calma o bastante para uso escolar, mas moderna o suficiente para parecer uma plataforma de IA."
+  }
+}
+
