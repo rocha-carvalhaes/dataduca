@@ -1,39 +1,19 @@
 import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
+import Login from './components/Login'
+import Layout from './components/Layout'
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
 
-  return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 dark:bg-gray-900">
-      <div className="flex gap-8 mb-8">
-        <a href="https://vite.dev" target="_blank" rel="noopener noreferrer">
-          <img src={viteLogo} className="h-24 w-24 hover:drop-shadow-[0_0_2em_#646cffaa] transition-all" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank" rel="noopener noreferrer">
-          <img src={reactLogo} className="h-24 w-24 animate-[spin_20s_linear_infinite] hover:drop-shadow-[0_0_2em_#61dafbaa]" alt="React logo" />
-        </a>
-      </div>
-      <h1 className="text-4xl font-bold mb-8 text-gray-800 dark:text-white">
-        Vite + React
-      </h1>
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8 mb-8">
-        <button 
-          onClick={() => setCount((count) => count + 1)}
-          className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors mb-4"
-        >
-          count is {count}
-        </button>
-        <p className="text-gray-600 dark:text-gray-300">
-          Edit <code className="bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded">src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="text-gray-500 dark:text-gray-400 text-sm">
-        Click on the Vite and React logos to learn more
-      </p>
-    </div>
-  )
+  const handleLoginSuccess = () => {
+    setIsAuthenticated(true)
+  }
+
+  if (isAuthenticated) {
+    return <Layout />
+  }
+
+  return <Login onLoginSuccess={handleLoginSuccess} />
 }
 
 export default App
