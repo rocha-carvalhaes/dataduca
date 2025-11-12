@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import Sidebar from './Sidebar'
-import Dashboard from '../pages/Dashboard'
+import Inicio from '../pages/Inicio'
 import Atividades from '../pages/Atividades'
+import AtividadeDigitacao from '../pages/AtividadeDigitacao'
 
 function Layout() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
-  const [currentPage, setCurrentPage] = useState('dashboard')
+  const [currentPage, setCurrentPage] = useState('inicio')
+  const [atividadeAtual, setAtividadeAtual] = useState(null)
 
   const handleToggleSidebar = () => {
     setIsSidebarCollapsed(!isSidebarCollapsed)
@@ -13,15 +15,34 @@ function Layout() {
 
   const handlePageChange = (pageId) => {
     setCurrentPage(pageId)
+    setAtividadeAtual(null)
+  }
+
+  const handleAbrirAtividade = (atividadeId, tipo) => {
+    setAtividadeAtual({ id: atividadeId, tipo })
+  }
+
+  const handleVoltarAtividades = () => {
+    setAtividadeAtual(null)
+    setCurrentPage('atividades')
   }
 
   const renderPage = () => {
+    if (atividadeAtual) {
+      switch (atividadeAtual.tipo) {
+        case 'digitacao':
+          return <AtividadeDigitacao onBack={handleVoltarAtividades} />
+        default:
+          return <Atividades onAbrirAtividade={handleAbrirAtividade} />
+      }
+    }
+
     switch (currentPage) {
       case 'atividades':
-        return <Atividades />
-      case 'dashboard':
+        return <Atividades onAbrirAtividade={handleAbrirAtividade} />
+      case 'inicio':
       default:
-        return <Dashboard />
+        return <Inicio />
     }
   }
 
@@ -42,8 +63,8 @@ function Layout() {
           <div className="flex items-center justify-between px-6 py-4">
             <div className="flex items-center gap-4">
               <h2 className="text-xl font-semibold text-[#333333]">
-                {currentPage === 'dashboard' && 'Início'}
-                {currentPage === 'atividades' && 'Atividades'}
+                {atividadeAtual ? 'Atividade' : currentPage === 'inicio' && 'Início'}
+                {!atividadeAtual && currentPage === 'atividades' && 'Atividades'}
               </h2>
             </div>
             <div className="flex items-center gap-4">

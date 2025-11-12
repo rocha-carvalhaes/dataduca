@@ -1,7 +1,7 @@
 function Sidebar({ isCollapsed, onToggle, currentPage, onPageChange }) {
   const menuItems = [
     {
-      id: 'dashboard',
+      id: 'inicio',
       label: 'Início',
       icon: (
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">

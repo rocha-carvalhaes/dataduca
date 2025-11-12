@@ -1,4 +1,4 @@
-function Dashboard() {
+function Inicio() {
   return (
     <div className="p-6">
       <div className="mb-6">
@@ -93,5 +93,5 @@ function Dashboard() {
   )
 }
 
-export default Dashboard
+export default Inicio
 
