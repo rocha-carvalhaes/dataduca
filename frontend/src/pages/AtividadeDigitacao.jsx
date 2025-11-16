@@ -168,20 +168,20 @@ function AtividadeDigitacao({ onBack }) {
     }
   }, [statusJogo, handleFimJogo])
 
-  // Função para iniciar/parar o loop de geração automática
-  const toggleLoop = () => {
-    if (loopAtivo) {
-      // Parar o loop
-      if (intervaloRef.current) {
-        clearInterval(intervaloRef.current)
-        intervaloRef.current = null
-      }
-      setLoopAtivo(false)
-    } else {
-      // Iniciar o loop
-      setLoopAtivo(true)
-    }
-  }
+  // // Função para iniciar/parar o loop de geração automática
+  // const toggleLoop = () => {
+  //   if (loopAtivo) {
+  //     // Parar o loop
+  //     if (intervaloRef.current) {
+  //       clearInterval(intervaloRef.current)
+  //       intervaloRef.current = null
+  //     }
+  //     setLoopAtivo(false)
+  //   } else {
+  //     // Iniciar o loop
+  //     setLoopAtivo(true)
+  //   }
+  // }
 
   // Efeito para controlar o loop de geração automática
   useEffect(() => {
