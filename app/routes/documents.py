@@ -31,16 +31,17 @@ def get_db_connection():
                 port=os.getenv("DB_PORT", "5432"),
                 database=os.getenv("DB_NAME", "dataduca"),
                 user=os.getenv("DB_USER", "postgres"),
-                password=os.getenv("DB_PASSWORD", "postgres")
+                password=os.getenv("DB_PASSWORD", "postgres"),
             )
         return conn
     except psycopg2.OperationalError as e:
         raise HTTPException(
-            status_code=500,
-            detail=f"Erro ao conectar ao banco de dados: {str(e)}"
+            status_code=500, detail=f"Erro ao conectar ao banco de dados: {str(e)}"
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro ao conectar ao banco: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Erro ao conectar ao banco: {str(e)}"
+        )
 
 
 # Modelos Pydantic
@@ -74,8 +75,9 @@ async def list_documents(current_user: TokenData = Depends(get_current_user)):
     try:
         conn = get_db_connection()
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute("""
-                SELECT 
+            cur.execute(
+                """
+                SELECT
                     d.document_id,
                     d.document_name,
                     d.document_content,
@@ -86,28 +88,34 @@ async def list_documents(current_user: TokenData = Depends(get_current_user)):
                 FROM documents d
                 JOIN users u ON d.created_by = u.user_id
                 ORDER BY d.updated_at DESC
-            """)
+            """
+            )
             documents = cur.fetchall()
             return [dict(doc) for doc in documents]
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Erro ao listar documentos: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Erro ao listar documentos: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Erro ao listar documentos: {str(e)}"
+        )
     finally:
         if conn:
             conn.close()
 
 
 @router.get("/{document_id}", response_model=DocumentResponse)
-async def get_document(document_id: int, current_user: TokenData = Depends(get_current_user)):
+async def get_document(
+    document_id: int, current_user: TokenData = Depends(get_current_user)
+):
     """Obtém um documento específico por ID"""
     conn = None
     try:
         conn = get_db_connection()
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute("""
-                SELECT 
+            cur.execute(
+                """
+                SELECT
                     d.document_id,
                     d.document_name,
                     d.document_content,
@@ -118,7 +126,9 @@ async def get_document(document_id: int, current_user: TokenData = Depends(get_c
                 FROM documents d
                 JOIN users u ON d.created_by = u.user_id
                 WHERE d.document_id = %s
-            """, (document_id,))
+            """,
+                (document_id,),
+            )
             document = cur.fetchone()
             if not document:
                 raise HTTPException(status_code=404, detail="Documento não encontrado")
@@ -127,34 +137,50 @@ async def get_document(document_id: int, current_user: TokenData = Depends(get_c
         raise
     except Exception as e:
         logger.error(f"Erro ao obter documento {document_id}: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Erro ao obter documento: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Erro ao obter documento: {str(e)}"
+        )
     finally:
         if conn:
             conn.close()
 
 
 @router.post("/", response_model=DocumentResponse, status_code=201)
-async def create_document(document: DocumentCreate, current_user: TokenData = Depends(get_current_user)):
+async def create_document(
+    document: DocumentCreate, current_user: TokenData = Depends(get_current_user)
+):
     """Cria um novo documento"""
     conn = None
     try:
         conn = get_db_connection()
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute("""
+            cur.execute(
+                """
                 INSERT INTO documents (document_name, document_content, created_by)
                 VALUES (%s, %s, %s)
                 RETURNING document_id, document_name, document_content, created_by, created_at, updated_at
-            """, (document.document_name, document.document_content, current_user.user_id))
+            """,
+                (
+                    document.document_name,
+                    document.document_content,
+                    current_user.user_id,
+                ),
+            )
             new_document = cur.fetchone()
-            
+
             # Buscar nome do criador
-            cur.execute("SELECT user_name FROM users WHERE user_id = %s", (current_user.user_id,))
+            cur.execute(
+                "SELECT user_name FROM users WHERE user_id = %s",
+                (current_user.user_id,),
+            )
             creator = cur.fetchone()
-            
+
             conn.commit()
-            
+
             result = dict(new_document)
-            result['created_by_name'] = creator['user_name'] if creator else current_user.user_name
+            result["created_by_name"] = (
+                creator["user_name"] if creator else current_user.user_name
+            )
             return result
     except HTTPException:
         raise
@@ -162,60 +188,77 @@ async def create_document(document: DocumentCreate, current_user: TokenData = De
         if conn:
             conn.rollback()
         logger.error(f"Erro ao criar documento: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Erro ao criar documento: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Erro ao criar documento: {str(e)}"
+        )
     finally:
         if conn:
             conn.close()
 
 
 @router.put("/{document_id}", response_model=DocumentResponse)
-async def update_document(document_id: int, document: DocumentUpdate, current_user: TokenData = Depends(get_current_user)):
+async def update_document(
+    document_id: int,
+    document: DocumentUpdate,
+    current_user: TokenData = Depends(get_current_user),
+):
     """Atualiza um documento existente"""
     conn = None
     try:
         conn = get_db_connection()
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             # Verifica se o documento existe
-            cur.execute("""
-                SELECT document_id, created_by 
-                FROM documents 
+            cur.execute(
+                """
+                SELECT document_id, created_by
+                FROM documents
                 WHERE document_id = %s
-            """, (document_id,))
+            """,
+                (document_id,),
+            )
             existing = cur.fetchone()
-            
+
             if not existing:
                 raise HTTPException(status_code=404, detail="Documento não encontrado")
-            
+
             # Monta a query dinamicamente
             updates = []
             values = []
-            
+
             if document.document_name is not None:
                 updates.append("document_name = %s")
                 values.append(document.document_name)
-            
+
             if document.document_content is not None:
                 updates.append("document_content = %s")
                 values.append(document.document_content)
-            
+
             if not updates:
                 # Se não há atualizações, retorna o documento atual
-                cur.execute("""
+                cur.execute(
+                    """
                     SELECT document_id, document_name, document_content, created_by, created_at, updated_at
                     FROM documents
                     WHERE document_id = %s
-                """, (document_id,))
+                """,
+                    (document_id,),
+                )
                 doc = cur.fetchone()
-                cur.execute("SELECT user_name FROM users WHERE user_id = %s", (doc['created_by'],))
+                cur.execute(
+                    "SELECT user_name FROM users WHERE user_id = %s",
+                    (doc["created_by"],),
+                )
                 creator = cur.fetchone()
                 result = dict(doc)
-                result['created_by_name'] = creator['user_name'] if creator else 'Desconhecido'
+                result["created_by_name"] = (
+                    creator["user_name"] if creator else "Desconhecido"
+                )
                 return result
-            
+
             # Sempre atualiza o updated_at
             updates.append("updated_at = NOW()")
             values.append(document_id)
-            
+
             query = f"""
                 UPDATE documents
                 SET {', '.join(updates)}
@@ -224,40 +267,54 @@ async def update_document(document_id: int, document: DocumentUpdate, current_us
             """
             cur.execute(query, values)
             updated_document = cur.fetchone()
-            
+
             # Buscar nome do criador
-            cur.execute("SELECT user_name FROM users WHERE user_id = %s", (updated_document['created_by'],))
+            cur.execute(
+                "SELECT user_name FROM users WHERE user_id = %s",
+                (updated_document["created_by"],),
+            )
             creator = cur.fetchone()
-            
+
             conn.commit()
-            
+
             result = dict(updated_document)
-            result['created_by_name'] = creator['user_name'] if creator else 'Desconhecido'
+            result["created_by_name"] = (
+                creator["user_name"] if creator else "Desconhecido"
+            )
             return result
     except HTTPException:
         raise
     except Exception as e:
         if conn:
             conn.rollback()
-        logger.error(f"Erro ao atualizar documento {document_id}: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Erro ao atualizar documento: {str(e)}")
+        logger.error(
+            f"Erro ao atualizar documento {document_id}: {str(e)}", exc_info=True
+        )
+        raise HTTPException(
+            status_code=500, detail=f"Erro ao atualizar documento: {str(e)}"
+        )
     finally:
         if conn:
             conn.close()
 
 
 @router.delete("/{document_id}", status_code=204)
-async def delete_document(document_id: int, current_user: TokenData = Depends(get_current_user)):
+async def delete_document(
+    document_id: int, current_user: TokenData = Depends(get_current_user)
+):
     """Deleta um documento"""
     conn = None
     try:
         conn = get_db_connection()
         with conn.cursor() as cur:
             # Verifica se o documento existe
-            cur.execute("SELECT document_id FROM documents WHERE document_id = %s", (document_id,))
+            cur.execute(
+                "SELECT document_id FROM documents WHERE document_id = %s",
+                (document_id,),
+            )
             if not cur.fetchone():
                 raise HTTPException(status_code=404, detail="Documento não encontrado")
-            
+
             cur.execute("DELETE FROM documents WHERE document_id = %s", (document_id,))
             conn.commit()
             return None
@@ -266,9 +323,12 @@ async def delete_document(document_id: int, current_user: TokenData = Depends(ge
     except Exception as e:
         if conn:
             conn.rollback()
-        logger.error(f"Erro ao deletar documento {document_id}: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Erro ao deletar documento: {str(e)}")
+        logger.error(
+            f"Erro ao deletar documento {document_id}: {str(e)}", exc_info=True
+        )
+        raise HTTPException(
+            status_code=500, detail=f"Erro ao deletar documento: {str(e)}"
+        )
     finally:
         if conn:
             conn.close()
-

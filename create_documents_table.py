@@ -2,11 +2,13 @@
 Script para criar a tabela documents no banco de dados
 Execute: python create_documents_table.py
 """
+
 import psycopg2
 import os
 from dotenv import load_dotenv
 
 load_dotenv()
+
 
 def create_documents_table():
     """Cria a tabela documents no banco de dados"""
@@ -21,13 +23,14 @@ def create_documents_table():
                 port=os.getenv("DB_PORT", "5432"),
                 database=os.getenv("DB_NAME", "dataduca"),
                 user=os.getenv("DB_USER", "postgres"),
-                password=os.getenv("DB_PASSWORD", "postgres")
+                password=os.getenv("DB_PASSWORD", "postgres"),
             )
-        
+
         cur = conn.cursor()
-        
+
         # Criar tabela documents
-        cur.execute("""
+        cur.execute(
+            """
             CREATE TABLE IF NOT EXISTS documents (
                 document_id SERIAL PRIMARY KEY,
                 document_content TEXT NOT NULL,
@@ -35,28 +38,33 @@ def create_documents_table():
                 created_at TIMESTAMP DEFAULT NOW(),
                 updated_at TIMESTAMP DEFAULT NOW()
             )
-        """)
-        
+        """
+        )
+
         # Criar índice
-        cur.execute("""
+        cur.execute(
+            """
             CREATE INDEX IF NOT EXISTS idx_documents_created_by 
             ON documents(created_by)
-        """)
-        
+        """
+        )
+
         conn.commit()
         cur.close()
         conn.close()
-        
+
         print("Tabela 'documents' criada com sucesso!")
-        
+
     except psycopg2.OperationalError as e:
         print(f"Erro ao conectar ao banco de dados: {e}")
-        print("Verifique se o PostgreSQL esta rodando e as credenciais no .env estao corretas.")
+        print(
+            "Verifique se o PostgreSQL esta rodando e as credenciais no .env estao corretas."
+        )
     except psycopg2.Error as e:
         print(f"Erro ao criar tabela: {e}")
     except Exception as e:
         print(f"Erro inesperado: {e}")
 
+
 if __name__ == "__main__":
     create_documents_table()
-

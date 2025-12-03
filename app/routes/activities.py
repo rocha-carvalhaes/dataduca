@@ -15,12 +15,12 @@ class TypingActivityParams(BaseModel):
 async def get_typing_params():
     """
     Returns parameters for the typing activity.
-    By default, returns letters from the top row of the keyboard (q,w,e,r,t,y,u,i,o,p),
-    15 bubbles and slow speed (1.5 pixels per frame).
+    By default, returns letters from the top row of the keyboard
+    (q,w,e,r,t,y,u,i,o,p), 15 bubbles and slow speed
+    (1.5 pixels per frame).
     """
     return TypingActivityParams(
         characters=["q", "w", "e", "r", "t", "y", "u", "i", "o", "p"],
         total_bubbles=15,
-        speed=1.5  # Slow speed
+        speed=1.5,  # Slow speed
     )
-

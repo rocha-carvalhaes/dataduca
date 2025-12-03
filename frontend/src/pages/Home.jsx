@@ -2,12 +2,8 @@ function Home() {
   return (
     <div className="p-6">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-[#333333] mb-2">
-          Início
-        </h1>
-        <p className="text-[#777777]">
-          Bem-vindo à plataforma Dataduca
-        </p>
+        <h1 className="text-3xl font-bold text-[#333333] mb-2">Início</h1>
+        <p className="text-[#777777]">Bem-vindo à plataforma Dataduca</p>
       </div>
 
       {/* Metrics cards */}
@@ -19,9 +15,7 @@ function Home() {
               <p className="text-sm font-medium text-[#777777] mb-1">
                 Progresso Recente
               </p>
-              <p className="text-2xl font-bold text-[#333333]">
-                0%
-              </p>
+              <p className="text-2xl font-bold text-[#333333]">0%</p>
             </div>
             <div className="bg-[#B8E3C0] rounded-full p-3">
               <svg
@@ -40,7 +34,7 @@ function Home() {
             </div>
           </div>
           <div className="w-full bg-[#F5F6F7] rounded-full h-2">
-            <div 
+            <div
               className="bg-[#A4D4AE] h-2 rounded-full transition-all duration-300"
               style={{ width: '0%' }}
             ></div>
@@ -54,12 +48,8 @@ function Home() {
               <p className="text-sm font-medium text-[#777777] mb-1">
                 Esperanzas
               </p>
-              <p className="text-2xl font-bold text-[#333333]">
-                0
-              </p>
-              <p className="text-xs text-[#777777] mt-1">
-                Moeda virtual
-              </p>
+              <p className="text-2xl font-bold text-[#333333]">0</p>
+              <p className="text-xs text-[#777777] mt-1">Moeda virtual</p>
             </div>
             <div className="bg-[#E6A8D7] rounded-full p-3">
               <svg
@@ -86,12 +76,12 @@ function Home() {
           Visão Geral
         </h2>
         <p className="text-[#777777]">
-          Acompanhe seu progresso e continue aprendendo! Complete atividades para ganhar Esperanzas e avançar no seu aprendizado.
+          Acompanhe seu progresso e continue aprendendo! Complete atividades
+          para ganhar Esperanzas e avançar no seu aprendizado.
         </p>
       </div>
     </div>
-  )
+  );
 }
 
-export default Home
-
+export default Home;
