@@ -252,25 +252,18 @@ function Documents() {
                   />
                 ) : (
                   <div className="flex items-center gap-2 flex-1">
-                    <h2 
-                      className="font-semibold text-[#333333] cursor-pointer hover:text-[#E6A8D7] transition-colors"
+                    <button
+                      type="button"
+                      className="font-semibold text-[#333333] cursor-pointer hover:text-[#E6A8D7] transition-colors bg-transparent border-none p-0 text-left"
                       onClick={() => {
                         if (!isPreviewMode && (selectedDocument || isNewDocument)) {
                           setIsEditingName(true)
                         }
                       }}
-                      onKeyDown={(e) => {
-                        if ((e.key === 'Enter' || e.key === ' ') && !isPreviewMode && (selectedDocument || isNewDocument)) {
-                          e.preventDefault()
-                          setIsEditingName(true)
-                        }
-                      }}
-                      role="button"
-                      tabIndex={0}
                       title="Clique para editar o nome"
                     >
                       {documentName || (isNewDocument ? 'Novo Documento' : selectedDocument ? `Documento #${selectedDocument.document_id}` : 'Selecione um documento')}
-                    </h2>
+                    </button>
                     {!isPreviewMode && (selectedDocument || isNewDocument) && (
                       <button
                         onClick={() => setIsEditingName(true)}
