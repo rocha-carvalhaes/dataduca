@@ -22,5 +22,5 @@ async def get_typing_params():
     return TypingActivityParams(
         characters=["q", "w", "e", "r", "t", "y", "u", "i", "o", "p"],
         total_bubbles=15,
-        speed=1.5  # Slow speed
+        speed=1.5,  # Slow speed
     )

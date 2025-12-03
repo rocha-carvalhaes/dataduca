@@ -48,5 +48,5 @@ app.include_router(documents.router)
 async def read_root():
     return {
         "message": f"🚀 {settings.APP_NAME} está rodando!",
-        "docs": "Acesse /docs para ver a documentação interativa."
+        "docs": "Acesse /docs para ver a documentação interativa.",
     }

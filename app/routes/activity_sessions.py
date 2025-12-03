@@ -31,16 +31,17 @@ def get_db_connection():
                 port=os.getenv("DB_PORT", "5432"),
                 database=os.getenv("DB_NAME", "dataduca"),
                 user=os.getenv("DB_USER", "postgres"),
-                password=os.getenv("DB_PASSWORD", "postgres")
+                password=os.getenv("DB_PASSWORD", "postgres"),
             )
         return conn
     except psycopg2.OperationalError as e:
         raise HTTPException(
-            status_code=500,
-            detail=f"Erro ao conectar ao banco de dados: {str(e)}"
+            status_code=500, detail=f"Erro ao conectar ao banco de dados: {str(e)}"
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro ao conectar ao banco: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Erro ao conectar ao banco: {str(e)}"
+        )
 
 
 # Modelos Pydantic
@@ -65,7 +66,8 @@ async def list_activity_sessions(current_user: TokenData = Depends(get_current_u
     try:
         conn = get_db_connection()
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute("""
+            cur.execute(
+                """
                 SELECT
                     asess.activity_session_id,
                     asess.user_session_id,
@@ -80,14 +82,17 @@ async def list_activity_sessions(current_user: TokenData = Depends(get_current_u
                 JOIN users u ON us.user_id = u.user_id
                 JOIN activities a ON asess.activity_id = a.activity_id
                 ORDER BY asess.initiated_at DESC
-            """)
+            """
+            )
             sessions = cur.fetchall()
             return [dict(session) for session in sessions]
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Erro ao listar sessões de atividades: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Erro ao listar sessões de atividades: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Erro ao listar sessões de atividades: {str(e)}"
+        )
     finally:
         if conn:
             conn.close()
