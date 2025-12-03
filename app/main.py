@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routes import health_check, activities, users, auth, user_sessions, activity_sessions, activities_manage
+from app.routes import health_check, activities, users, auth, user_sessions, activity_sessions, activities_manage, documents
 from app.core.config import settings
 
 # Cria a instância da aplicação FastAPI
@@ -28,6 +28,7 @@ app.include_router(activities_manage.router)
 app.include_router(users.router)
 app.include_router(user_sessions.router)
 app.include_router(activity_sessions.router)
+app.include_router(documents.router)
 
 # Define o endpoint raiz
 # Esse endpoint é usado para verificar se o servidor está funcionando

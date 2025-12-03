@@ -143,6 +143,31 @@ export const api = {
       return api.request('/api/activity-sessions/')
     },
   },
+  documents: {
+    async list() {
+      return api.request('/api/documents/')
+    },
+    async get(documentId) {
+      return api.request(`/api/documents/${documentId}`)
+    },
+    async create(data) {
+      return api.request('/api/documents/', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      })
+    },
+    async update(documentId, data) {
+      return api.request(`/api/documents/${documentId}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      })
+    },
+    async delete(documentId) {
+      return api.request(`/api/documents/${documentId}`, {
+        method: 'DELETE',
+      })
+    },
+  },
 }
 
 export default api

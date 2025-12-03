@@ -4,6 +4,7 @@ import Home from '../pages/Home'
 import Activities from '../pages/Activities'
 import TypingActivity from '../pages/TypingActivity'
 import Manage from '../pages/Manage'
+import Documents from '../pages/Documents'
 import { authStorage } from '../utils/auth'
 
 function Layout({ onLogout }) {
@@ -51,6 +52,8 @@ function Layout({ onLogout }) {
         return <Activities onOpenActivity={handleOpenActivity} />
       case 'manage':
         return <Manage />
+      case 'documents':
+        return <Documents />
       case 'home':
       default:
         return <Home />
@@ -77,6 +80,7 @@ function Layout({ onLogout }) {
                 {currentActivity ? 'Atividade' : currentPage === 'home' && 'Início'}
                 {!currentActivity && currentPage === 'activities' && 'Atividades'}
                 {!currentActivity && currentPage === 'manage' && 'Gerenciar'}
+                {!currentActivity && currentPage === 'documents' && 'Documentação'}
               </h2>
             </div>
             <div className="flex items-center gap-4">

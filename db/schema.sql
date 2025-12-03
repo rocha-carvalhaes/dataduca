@@ -55,3 +55,17 @@ CREATE TABLE activity_sessions (
 
 CREATE INDEX idx_activity_sessions_user_session_id ON activity_sessions(user_session_id);
 CREATE INDEX idx_activity_sessions_activity_id ON activity_sessions(activity_id);
+
+-- ======================================
+-- Tabela de documentos
+-- ======================================
+CREATE TABLE documents (
+    document_id SERIAL PRIMARY KEY,
+    document_name VARCHAR(200) NOT NULL DEFAULT 'Sem título',
+    document_content TEXT NOT NULL,
+    created_by INT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_documents_created_by ON documents(created_by);
