@@ -78,7 +78,7 @@ async def list_activities(current_user: TokenData = Depends(get_current_user)):
         conn = get_db_connection()
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute("""
-                SELECT activity_id, activity_name, activity_description, 
+                SELECT activity_id, activity_name, activity_description,
                        activity_objective, activity_version, updated_at
                 FROM activities
                 ORDER BY updated_at DESC
@@ -103,7 +103,7 @@ async def get_activity(activity_id: int, current_user: TokenData = Depends(get_c
         conn = get_db_connection()
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute("""
-                SELECT activity_id, activity_name, activity_description, 
+                SELECT activity_id, activity_name, activity_description,
                        activity_objective, activity_version, updated_at
                 FROM activities
                 WHERE activity_id = %s
@@ -132,9 +132,9 @@ async def create_activity(activity: ActivityCreate, current_user: TokenData = De
             cur.execute("""
                 INSERT INTO activities (activity_name, activity_description, activity_objective, activity_version)
                 VALUES (%s, %s, %s, %s)
-                RETURNING activity_id, activity_name, activity_description, 
+                RETURNING activity_id, activity_name, activity_description,
                           activity_objective, activity_version, updated_at
-            """, (activity.activity_name, activity.activity_description, 
+            """, (activity.activity_name, activity.activity_description,
                   activity.activity_objective, activity.activity_version))
             new_activity = cur.fetchone()
             conn.commit()
@@ -167,46 +167,46 @@ async def update_activity(activity_id: int, activity: ActivityUpdate, current_us
             cur.execute("SELECT activity_id FROM activities WHERE activity_id = %s", (activity_id,))
             if not cur.fetchone():
                 raise HTTPException(status_code=404, detail="Atividade não encontrada")
-            
+
             # Monta a query dinamicamente
             updates = []
             values = []
-            
+
             if activity.activity_name is not None:
                 updates.append("activity_name = %s")
                 values.append(activity.activity_name)
-            
+
             if activity.activity_description is not None:
                 updates.append("activity_description = %s")
                 values.append(activity.activity_description)
-            
+
             if activity.activity_objective is not None:
                 updates.append("activity_objective = %s")
                 values.append(activity.activity_objective)
-            
+
             if activity.activity_version is not None:
                 updates.append("activity_version = %s")
                 values.append(activity.activity_version)
-            
+
             if not updates:
                 # Se não há atualizações, retorna a atividade atual
                 cur.execute("""
-                    SELECT activity_id, activity_name, activity_description, 
+                    SELECT activity_id, activity_name, activity_description,
                            activity_objective, activity_version, updated_at
                     FROM activities
                     WHERE activity_id = %s
                 """, (activity_id,))
                 return dict(cur.fetchone())
-            
+
             # Sempre atualiza o updated_at
             updates.append("updated_at = NOW()")
             values.append(activity_id)
-            
+
             query = f"""
                 UPDATE activities
                 SET {', '.join(updates)}
                 WHERE activity_id = %s
-                RETURNING activity_id, activity_name, activity_description, 
+                RETURNING activity_id, activity_name, activity_description,
                           activity_objective, activity_version, updated_at
             """
             cur.execute(query, values)
@@ -236,7 +236,7 @@ async def delete_activity(activity_id: int, current_user: TokenData = Depends(ge
             cur.execute("SELECT activity_id FROM activities WHERE activity_id = %s", (activity_id,))
             if not cur.fetchone():
                 raise HTTPException(status_code=404, detail="Atividade não encontrada")
-            
+
             cur.execute("DELETE FROM activities WHERE activity_id = %s", (activity_id,))
             conn.commit()
             return None
@@ -250,4 +250,3 @@ async def delete_activity(activity_id: int, current_user: TokenData = Depends(ge
     finally:
         if conn:
             conn.close()
-

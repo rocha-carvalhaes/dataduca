@@ -108,17 +108,17 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    
+
     try:
         token = credentials.credentials
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id: int = payload.get("user_id")
         user_name: str = payload.get("user_name")
         user_type: str = payload.get("user_type")
-        
+
         if user_id is None or user_name is None or user_type is None:
             raise credentials_exception
-        
+
         return TokenData(user_id=user_id, user_name=user_name, user_type=user_type)
     except JWTError:
         raise credentials_exception
@@ -138,28 +138,28 @@ async def login(login_data: LoginRequest):
                 WHERE user_name = %s
             """, (login_data.username,))
             user = cur.fetchone()
-            
+
             if not user:
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Usuário ou senha incorretos"
                 )
-            
+
             # Verificar senha
             if not verify_password(login_data.password, user['hash_password']):
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Usuário ou senha incorretos"
                 )
-            
+
             # Encerrar sessões ativas do usuário antes de criar uma nova
             cur.execute("""
                 UPDATE user_sessions
                 SET ended_at = NOW()
-                WHERE user_id = %s 
+                WHERE user_id = %s
                 AND ended_at IS NULL
             """, (user['user_id'],))
-            
+
             # Criar nova sessão no banco
             cur.execute("""
                 INSERT INTO user_sessions (user_id)
@@ -168,7 +168,7 @@ async def login(login_data: LoginRequest):
             """, (user['user_id'],))
             session = cur.fetchone()
             conn.commit()
-            
+
             # Criar token JWT
             access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
             access_token = create_access_token(
@@ -180,7 +180,7 @@ async def login(login_data: LoginRequest):
                 },
                 expires_delta=access_token_expires
             )
-            
+
             return LoginResponse(
                 access_token=access_token,
                 token_type="bearer",
@@ -218,7 +218,7 @@ async def logout(current_user: TokenData = Depends(get_current_user)):
                 WHERE user_session_id = (
                     SELECT user_session_id
                     FROM user_sessions
-                    WHERE user_id = %s 
+                    WHERE user_id = %s
                     AND ended_at IS NULL
                     ORDER BY initiated_at DESC
                     LIMIT 1
@@ -253,4 +253,3 @@ async def get_current_user_info(current_user: TokenData = Depends(get_current_us
 async def verify_token(current_user: TokenData = Depends(get_current_user)):
     """Verifica se o token é válido"""
     return {"valid": True, "user": current_user}
-

@@ -75,7 +75,7 @@ async def list_documents(current_user: TokenData = Depends(get_current_user)):
         conn = get_db_connection()
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute("""
-                SELECT 
+                SELECT
                     d.document_id,
                     d.document_name,
                     d.document_content,
@@ -107,7 +107,7 @@ async def get_document(document_id: int, current_user: TokenData = Depends(get_c
         conn = get_db_connection()
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute("""
-                SELECT 
+                SELECT
                     d.document_id,
                     d.document_name,
                     d.document_content,
@@ -146,13 +146,13 @@ async def create_document(document: DocumentCreate, current_user: TokenData = De
                 RETURNING document_id, document_name, document_content, created_by, created_at, updated_at
             """, (document.document_name, document.document_content, current_user.user_id))
             new_document = cur.fetchone()
-            
+
             # Buscar nome do criador
             cur.execute("SELECT user_name FROM users WHERE user_id = %s", (current_user.user_id,))
             creator = cur.fetchone()
-            
+
             conn.commit()
-            
+
             result = dict(new_document)
             result['created_by_name'] = creator['user_name'] if creator else current_user.user_name
             return result
@@ -177,27 +177,27 @@ async def update_document(document_id: int, document: DocumentUpdate, current_us
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             # Verifica se o documento existe
             cur.execute("""
-                SELECT document_id, created_by 
-                FROM documents 
+                SELECT document_id, created_by
+                FROM documents
                 WHERE document_id = %s
             """, (document_id,))
             existing = cur.fetchone()
-            
+
             if not existing:
                 raise HTTPException(status_code=404, detail="Documento não encontrado")
-            
+
             # Monta a query dinamicamente
             updates = []
             values = []
-            
+
             if document.document_name is not None:
                 updates.append("document_name = %s")
                 values.append(document.document_name)
-            
+
             if document.document_content is not None:
                 updates.append("document_content = %s")
                 values.append(document.document_content)
-            
+
             if not updates:
                 # Se não há atualizações, retorna o documento atual
                 cur.execute("""
@@ -211,11 +211,11 @@ async def update_document(document_id: int, document: DocumentUpdate, current_us
                 result = dict(doc)
                 result['created_by_name'] = creator['user_name'] if creator else 'Desconhecido'
                 return result
-            
+
             # Sempre atualiza o updated_at
             updates.append("updated_at = NOW()")
             values.append(document_id)
-            
+
             query = f"""
                 UPDATE documents
                 SET {', '.join(updates)}
@@ -224,13 +224,13 @@ async def update_document(document_id: int, document: DocumentUpdate, current_us
             """
             cur.execute(query, values)
             updated_document = cur.fetchone()
-            
+
             # Buscar nome do criador
             cur.execute("SELECT user_name FROM users WHERE user_id = %s", (updated_document['created_by'],))
             creator = cur.fetchone()
-            
+
             conn.commit()
-            
+
             result = dict(updated_document)
             result['created_by_name'] = creator['user_name'] if creator else 'Desconhecido'
             return result
@@ -257,7 +257,7 @@ async def delete_document(document_id: int, current_user: TokenData = Depends(ge
             cur.execute("SELECT document_id FROM documents WHERE document_id = %s", (document_id,))
             if not cur.fetchone():
                 raise HTTPException(status_code=404, detail="Documento não encontrado")
-            
+
             cur.execute("DELETE FROM documents WHERE document_id = %s", (document_id,))
             conn.commit()
             return None
@@ -271,4 +271,3 @@ async def delete_document(document_id: int, current_user: TokenData = Depends(ge
     finally:
         if conn:
             conn.close()
-

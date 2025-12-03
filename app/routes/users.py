@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/users", tags=["Users"])
 
+
 # Configuração do banco de dados
 def get_db_connection():
     """Cria e retorna uma conexão com o banco de dados"""
@@ -38,12 +39,15 @@ def get_db_connection():
             )
         return conn
     except psycopg2.OperationalError as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Erro ao conectar ao banco de dados. Verifique se o PostgreSQL está rodando e as credenciais estão corretas: {str(e)}"
+        error_msg = (
+            f"Erro ao conectar ao banco de dados. "
+            f"Verifique se o PostgreSQL está rodando e as credenciais "
+            f"estão corretas: {str(e)}"
         )
+        raise HTTPException(status_code=500, detail=error_msg)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro ao conectar ao banco: {str(e)}")
+        error_msg = f"Erro ao conectar ao banco: {str(e)}"
+        raise HTTPException(status_code=500, detail=error_msg)
 
 
 # Modelos Pydantic
@@ -128,13 +132,13 @@ async def create_user(user: UserCreate, current_user: TokenData = Depends(get_cu
             status_code=400,
             detail="user_type deve ser 'aluno' ou 'professor'"
         )
-    
+
     # Hash da senha
     salt = bcrypt.gensalt()
     hash_password = bcrypt.hashpw(user.password.encode('utf-8'), salt)
     # Converte bytes para string para armazenar no banco
     hash_password_str = hash_password.decode('utf-8')
-    
+
     conn = None
     try:
         conn = get_db_connection()
@@ -175,33 +179,33 @@ async def update_user(user_id: int, user: UserUpdate, current_user: TokenData = 
             cur.execute("SELECT user_id FROM users WHERE user_id = %s", (user_id,))
             if not cur.fetchone():
                 raise HTTPException(status_code=404, detail="Usuário não encontrado")
-            
+
             # Validação do tipo de usuário se fornecido
             if user.user_type and user.user_type not in ['aluno', 'professor']:
                 raise HTTPException(
                     status_code=400,
                     detail="user_type deve ser 'aluno' ou 'professor'"
                 )
-            
+
             # Monta a query dinamicamente baseado nos campos fornecidos
             updates = []
             values = []
-            
+
             if user.user_name is not None:
                 updates.append("user_name = %s")
                 values.append(user.user_name)
-            
+
             if user.user_type is not None:
                 updates.append("user_type = %s")
                 values.append(user.user_type)
-            
+
             if user.password is not None:
                 salt = bcrypt.gensalt()
                 hash_password = bcrypt.hashpw(user.password.encode('utf-8'), salt)
                 hash_password_str = hash_password.decode('utf-8')
                 updates.append("hash_password = %s")
                 values.append(hash_password_str)
-            
+
             if not updates:
                 # Se não há atualizações, retorna o usuário atual
                 cur.execute("""
@@ -210,7 +214,7 @@ async def update_user(user_id: int, user: UserUpdate, current_user: TokenData = 
                     WHERE user_id = %s
                 """, (user_id,))
                 return dict(cur.fetchone())
-            
+
             values.append(user_id)
             query = f"""
                 UPDATE users
@@ -250,7 +254,7 @@ async def delete_user(user_id: int, current_user: TokenData = Depends(get_curren
             cur.execute("SELECT user_id FROM users WHERE user_id = %s", (user_id,))
             if not cur.fetchone():
                 raise HTTPException(status_code=404, detail="Usuário não encontrado")
-            
+
             cur.execute("DELETE FROM users WHERE user_id = %s", (user_id,))
             conn.commit()
             return None
@@ -264,4 +268,3 @@ async def delete_user(user_id: int, current_user: TokenData = Depends(get_curren
     finally:
         if conn:
             conn.close()
-

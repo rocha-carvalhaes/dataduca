@@ -66,7 +66,7 @@ async def list_activity_sessions(current_user: TokenData = Depends(get_current_u
         conn = get_db_connection()
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute("""
-                SELECT 
+                SELECT
                     asess.activity_session_id,
                     asess.user_session_id,
                     u.user_name,
@@ -91,4 +91,3 @@ async def list_activity_sessions(current_user: TokenData = Depends(get_current_u
     finally:
         if conn:
             conn.close()
-
