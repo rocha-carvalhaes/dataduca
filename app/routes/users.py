@@ -268,3 +268,4 @@ async def delete_user(user_id: int, current_user: TokenData = Depends(get_curren
     finally:
         if conn:
             conn.close()
+

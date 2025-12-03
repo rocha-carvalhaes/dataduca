@@ -50,3 +50,4 @@ async def read_root():
         "message": f"🚀 {settings.APP_NAME} está rodando!",
         "docs": "Acesse /docs para ver a documentação interativa."
     }
+
