@@ -8,7 +8,6 @@ function TypingActivity({ onBack }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [generatedCharacters, setGeneratedCharacters] = useState([])
-  // const [loopActive, setLoopActive] = useState(false)
   const [bubbles, setBubbles] = useState([])
   const [gameStarted, setGameStarted] = useState(false)
   const [generatedBubbles, setGeneratedBubbles] = useState([]) // Track all bubbles generated in the game
@@ -168,47 +167,6 @@ function TypingActivity({ onBack }) {
     }
   }, [gameStatus, handleGameEnd])
 
-  // // Função para iniciar/parar o loop de geração automática
-  // const toggleLoop = () => {
-  //   if (loopAtivo) {
-  //     // Parar o loop
-  //     if (intervaloRef.current) {
-  //       clearInterval(intervaloRef.current)
-  //       intervaloRef.current = null
-  //     }
-  //     setLoopAtivo(false)
-  //   } else {
-  //     // Iniciar o loop
-  //     setLoopAtivo(true)
-  //   }
-  // }
-
-  // Effect to control automatic generation loop
-  useEffect(() => {
-    if (loopActive && speed !== null && characters.length > 0) {
-      // Convert speed (in seconds) to milliseconds
-      const intervalMs = speed * 1000
-      
-      // Create interval to generate characters automatically
-      intervalRef.current = setInterval(() => {
-        addCharacter()
-      }, intervalMs)
-    } else {
-      // Clear interval if loop is not active
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current)
-        intervalRef.current = null
-      }
-    }
-
-    // Clear interval on unmount or when dependencies change
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current)
-        intervalRef.current = null
-      }
-    }
-  }, [loopActive, speed, characters.length, addCharacter])
 
   // // Função para remover a primeira ocorrência de um caractere da lista
   // const removerCaractere = (caractere) => {
