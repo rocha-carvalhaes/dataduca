@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react'
 import api from '../config/api'
 
-function GerenciarUsuarios() {
-  const [usuarios, setUsuarios] = useState([])
+function ManageUsers() {
+  const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [mostrarFormulario, setMostrarFormulario] = useState(false)
-  const [usuarioEditando, setUsuarioEditando] = useState(null)
+  const [showForm, setShowForm] = useState(false)
+  const [editingUser, setEditingUser] = useState(null)
   const [formData, setFormData] = useState({
     user_name: '',
     user_type: 'aluno',
@@ -14,15 +14,15 @@ function GerenciarUsuarios() {
   })
 
   useEffect(() => {
-    carregarUsuarios()
+    loadUsers()
   }, [])
 
-  const carregarUsuarios = async () => {
+  const loadUsers = async () => {
     try {
       setLoading(true)
       setError(null)
-      const data = await api.usuarios.listar()
-      setUsuarios(data)
+      const data = await api.users.list()
+      setUsers(data)
     } catch (err) {
       setError('Erro ao carregar usuários. Tente novamente.')
       console.error(err)
@@ -35,50 +35,50 @@ function GerenciarUsuarios() {
     e.preventDefault()
     try {
       setError(null)
-      if (usuarioEditando) {
-        // Atualizar usuário
-        await api.usuarios.atualizar(usuarioEditando.user_id, formData)
+      if (editingUser) {
+        // Update user
+        await api.users.update(editingUser.user_id, formData)
       } else {
-        // Criar novo usuário
-        await api.usuarios.criar(formData)
+        // Create new user
+        await api.users.create(formData)
       }
-      setMostrarFormulario(false)
-      setUsuarioEditando(null)
+      setShowForm(false)
+      setEditingUser(null)
       setFormData({ user_name: '', user_type: 'aluno', password: '' })
-      carregarUsuarios()
+      loadUsers()
     } catch (err) {
       setError(err.message || 'Erro ao salvar usuário. Tente novamente.')
       console.error(err)
     }
   }
 
-  const handleEditar = (usuario) => {
-    setUsuarioEditando(usuario)
+  const handleEdit = (user) => {
+    setEditingUser(user)
     setFormData({
-      user_name: usuario.user_name,
-      user_type: usuario.user_type,
-      password: '', // Não preenche a senha por segurança
+      user_name: user.user_name,
+      user_type: user.user_type,
+      password: '', // Don't fill password for security
     })
-    setMostrarFormulario(true)
+    setShowForm(true)
   }
 
-  const handleDeletar = async (userId) => {
+  const handleDelete = async (userId) => {
     if (!window.confirm('Tem certeza que deseja deletar este usuário?')) {
       return
     }
     try {
       setError(null)
-      await api.usuarios.deletar(userId)
-      carregarUsuarios()
+      await api.users.delete(userId)
+      loadUsers()
     } catch (err) {
       setError('Erro ao deletar usuário. Tente novamente.')
       console.error(err)
     }
   }
 
-  const handleCancelar = () => {
-    setMostrarFormulario(false)
-    setUsuarioEditando(null)
+  const handleCancel = () => {
+    setShowForm(false)
+    setEditingUser(null)
     setFormData({ user_name: '', user_type: 'aluno', password: '' })
     setError(null)
   }
@@ -93,18 +93,18 @@ function GerenciarUsuarios() {
 
   return (
     <div>
-      {/* Mensagem de erro */}
+      {/* Error message */}
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
           {error}
         </div>
       )}
 
-      {/* Botão de adicionar */}
-      {!mostrarFormulario && (
+      {/* Add button */}
+      {!showForm && (
         <div className="mb-6 flex justify-end">
           <button
-            onClick={() => setMostrarFormulario(true)}
+            onClick={() => setShowForm(true)}
             className="bg-[#E6A8D7] text-white px-6 py-2 rounded-lg hover:bg-[#D89BC8] transition-colors font-medium flex items-center gap-2"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -115,11 +115,11 @@ function GerenciarUsuarios() {
         </div>
       )}
 
-      {/* Formulário */}
-      {mostrarFormulario && (
+      {/* Form */}
+      {showForm && (
         <div className="bg-white rounded-lg shadow border border-[#D9D9D9] p-6 mb-6">
           <h2 className="text-xl font-semibold text-[#333333] mb-4">
-            {usuarioEditando ? 'Editar Usuário' : 'Novo Usuário'}
+            {editingUser ? 'Editar Usuário' : 'Novo Usuário'}
           </h2>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -151,11 +151,11 @@ function GerenciarUsuarios() {
             </div>
             <div>
               <label className="block text-sm font-medium text-[#333333] mb-2">
-                {usuarioEditando ? 'Nova Senha (deixe em branco para manter a atual)' : 'Senha'}
+                {editingUser ? 'Nova Senha (deixe em branco para manter a atual)' : 'Senha'}
               </label>
               <input
                 type="password"
-                required={!usuarioEditando}
+                required={!editingUser}
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 className="w-full px-4 py-2 border border-[#D9D9D9] rounded-lg focus:ring-2 focus:ring-[#E6A8D7] focus:border-transparent outline-none"
@@ -165,7 +165,7 @@ function GerenciarUsuarios() {
             <div className="flex gap-3 justify-end">
               <button
                 type="button"
-                onClick={handleCancelar}
+                onClick={handleCancel}
                 className="px-6 py-2 border border-[#D9D9D9] rounded-lg hover:bg-[#F5F6F7] transition-colors"
               >
                 Cancelar
@@ -174,14 +174,14 @@ function GerenciarUsuarios() {
                 type="submit"
                 className="px-6 py-2 bg-[#E6A8D7] text-white rounded-lg hover:bg-[#D89BC8] transition-colors"
               >
-                {usuarioEditando ? 'Atualizar' : 'Criar'}
+                {editingUser ? 'Atualizar' : 'Criar'}
               </button>
             </div>
           </form>
         </div>
       )}
 
-      {/* Tabela de usuários */}
+      {/* Users table */}
       <div className="bg-white rounded-lg shadow border border-[#D9D9D9] overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -205,37 +205,37 @@ function GerenciarUsuarios() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#D9D9D9]">
-              {usuarios.length === 0 ? (
+              {users.length === 0 ? (
                 <tr>
                   <td colSpan="5" className="px-6 py-8 text-center text-[#6E6E6E]">
                     Nenhum usuário encontrado
                   </td>
                 </tr>
               ) : (
-                usuarios.map((usuario) => (
-                  <tr key={usuario.user_id} className="hover:bg-[#F5F6F7]">
+                users.map((user) => (
+                  <tr key={user.user_id} className="hover:bg-[#F5F6F7]">
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-[#333333]">
-                      {usuario.user_id}
+                      {user.user_id}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-[#333333]">
-                      {usuario.user_name}
+                      {user.user_name}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-[#333333]">
                       <span className={`px-2 py-1 rounded text-xs font-medium ${
-                        usuario.user_type === 'professor'
+                        user.user_type === 'professor'
                           ? 'bg-[#E6A8D7] text-white'
                           : 'bg-[#B8E3C0] text-[#333333]'
                       }`}>
-                        {usuario.user_type === 'professor' ? 'Professor' : 'Aluno'}
+                        {user.user_type === 'professor' ? 'Professor' : 'Aluno'}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-[#6E6E6E]">
-                      {new Date(usuario.created_at).toLocaleDateString('pt-BR')}
+                      {new Date(user.created_at).toLocaleDateString('pt-BR')}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex justify-end gap-2">
                         <button
-                          onClick={() => handleEditar(usuario)}
+                          onClick={() => handleEdit(user)}
                           className="text-[#E6A8D7] hover:text-[#D89BC8] transition-colors"
                           title="Editar"
                         >
@@ -244,7 +244,7 @@ function GerenciarUsuarios() {
                           </svg>
                         </button>
                         <button
-                          onClick={() => handleDeletar(usuario.user_id)}
+                          onClick={() => handleDelete(user.user_id)}
                           className="text-red-600 hover:text-red-800 transition-colors"
                           title="Deletar"
                         >
@@ -265,5 +265,5 @@ function GerenciarUsuarios() {
   )
 }
 
-export default GerenciarUsuarios
+export default ManageUsers
 

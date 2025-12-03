@@ -1,12 +1,12 @@
 import { useState } from 'react'
-import GerenciarUsuarios from './GerenciarUsuarios'
+import ManageUsers from './ManageUsers'
 
-function Gerenciar() {
-  const [submenuAtivo, setSubmenuAtivo] = useState('usuarios')
+function Manage() {
+  const [activeSubmenu, setActiveSubmenu] = useState('users')
 
   const submenuItems = [
     {
-      id: 'usuarios',
+      id: 'users',
       label: 'Usuários',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -14,15 +14,15 @@ function Gerenciar() {
         </svg>
       ),
     },
-    // Futuramente: atividades, configurações, etc.
+    // Future: activities, settings, etc.
   ]
 
   const renderSubmenu = () => {
-    switch (submenuAtivo) {
-      case 'usuarios':
-        return <GerenciarUsuarios />
+    switch (activeSubmenu) {
+      case 'users':
+        return <ManageUsers />
       default:
-        return <GerenciarUsuarios />
+        return <ManageUsers />
     }
   }
 
@@ -41,11 +41,11 @@ function Gerenciar() {
       <div className="bg-white rounded-lg shadow border border-[#D9D9D9] mb-6">
         <div className="flex border-b border-[#D9D9D9]">
           {submenuItems.map((item) => {
-            const isActive = submenuAtivo === item.id
+            const isActive = activeSubmenu === item.id
             return (
               <button
                 key={item.id}
-                onClick={() => setSubmenuAtivo(item.id)}
+                onClick={() => setActiveSubmenu(item.id)}
                 className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors ${
                   isActive
                     ? 'text-[#E6A8D7] border-b-2 border-[#E6A8D7]'
@@ -60,11 +60,11 @@ function Gerenciar() {
         </div>
       </div>
 
-      {/* Conteúdo do submenu */}
+      {/* Submenu content */}
       {renderSubmenu()}
     </div>
   )
 }
 
-export default Gerenciar
+export default Manage
 

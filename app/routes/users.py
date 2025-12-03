@@ -16,7 +16,7 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/usuarios", tags=["Usuários"])
+router = APIRouter(prefix="/api/users", tags=["Users"])
 
 # Configuração do banco de dados
 def get_db_connection():
@@ -46,19 +46,19 @@ def get_db_connection():
 
 
 # Modelos Pydantic
-class UsuarioCreate(BaseModel):
+class UserCreate(BaseModel):
     user_name: str
     user_type: str  # 'aluno' ou 'professor'
     password: str
 
 
-class UsuarioUpdate(BaseModel):
+class UserUpdate(BaseModel):
     user_name: Optional[str] = None
     user_type: Optional[str] = None
     password: Optional[str] = None
 
 
-class UsuarioResponse(BaseModel):
+class UserResponse(BaseModel):
     user_id: int
     user_name: str
     user_type: str
@@ -68,8 +68,8 @@ class UsuarioResponse(BaseModel):
         from_attributes = True
 
 
-@router.get("/", response_model=List[UsuarioResponse])
-async def listar_usuarios():
+@router.get("/", response_model=List[UserResponse])
+async def list_users():
     """Lista todos os usuários"""
     conn = None
     try:
@@ -80,8 +80,8 @@ async def listar_usuarios():
                 FROM users
                 ORDER BY created_at DESC
             """)
-            usuarios = cur.fetchall()
-            return [dict(usuario) for usuario in usuarios]
+            users = cur.fetchall()
+            return [dict(user) for user in users]
     except HTTPException:
         raise
     except Exception as e:
@@ -92,8 +92,8 @@ async def listar_usuarios():
             conn.close()
 
 
-@router.get("/{user_id}", response_model=UsuarioResponse)
-async def obter_usuario(user_id: int):
+@router.get("/{user_id}", response_model=UserResponse)
+async def get_user(user_id: int):
     """Obtém um usuário específico por ID"""
     conn = None
     try:
@@ -104,10 +104,10 @@ async def obter_usuario(user_id: int):
                 FROM users
                 WHERE user_id = %s
             """, (user_id,))
-            usuario = cur.fetchone()
-            if not usuario:
+            user = cur.fetchone()
+            if not user:
                 raise HTTPException(status_code=404, detail="Usuário não encontrado")
-            return dict(usuario)
+            return dict(user)
     except HTTPException:
         raise
     except Exception as e:
@@ -118,11 +118,11 @@ async def obter_usuario(user_id: int):
             conn.close()
 
 
-@router.post("/", response_model=UsuarioResponse, status_code=201)
-async def criar_usuario(usuario: UsuarioCreate):
+@router.post("/", response_model=UserResponse, status_code=201)
+async def create_user(user: UserCreate):
     """Cria um novo usuário"""
     # Validação do tipo de usuário
-    if usuario.user_type not in ['aluno', 'professor']:
+    if user.user_type not in ['aluno', 'professor']:
         raise HTTPException(
             status_code=400,
             detail="user_type deve ser 'aluno' ou 'professor'"
@@ -130,7 +130,7 @@ async def criar_usuario(usuario: UsuarioCreate):
     
     # Hash da senha
     salt = bcrypt.gensalt()
-    hash_password = bcrypt.hashpw(usuario.password.encode('utf-8'), salt)
+    hash_password = bcrypt.hashpw(user.password.encode('utf-8'), salt)
     # Converte bytes para string para armazenar no banco
     hash_password_str = hash_password.decode('utf-8')
     
@@ -142,10 +142,10 @@ async def criar_usuario(usuario: UsuarioCreate):
                 INSERT INTO users (user_name, user_type, hash_password)
                 VALUES (%s, %s, %s)
                 RETURNING user_id, user_name, user_type, created_at
-            """, (usuario.user_name, usuario.user_type, hash_password_str))
-            novo_usuario = cur.fetchone()
+            """, (user.user_name, user.user_type, hash_password_str))
+            new_user = cur.fetchone()
             conn.commit()
-            return dict(novo_usuario)
+            return dict(new_user)
     except psycopg2.IntegrityError as e:
         if conn:
             conn.rollback()
@@ -163,8 +163,8 @@ async def criar_usuario(usuario: UsuarioCreate):
             conn.close()
 
 
-@router.put("/{user_id}", response_model=UsuarioResponse)
-async def atualizar_usuario(user_id: int, usuario: UsuarioUpdate):
+@router.put("/{user_id}", response_model=UserResponse)
+async def update_user(user_id: int, user: UserUpdate):
     """Atualiza um usuário existente"""
     conn = None
     try:
@@ -176,7 +176,7 @@ async def atualizar_usuario(user_id: int, usuario: UsuarioUpdate):
                 raise HTTPException(status_code=404, detail="Usuário não encontrado")
             
             # Validação do tipo de usuário se fornecido
-            if usuario.user_type and usuario.user_type not in ['aluno', 'professor']:
+            if user.user_type and user.user_type not in ['aluno', 'professor']:
                 raise HTTPException(
                     status_code=400,
                     detail="user_type deve ser 'aluno' ou 'professor'"
@@ -186,17 +186,17 @@ async def atualizar_usuario(user_id: int, usuario: UsuarioUpdate):
             updates = []
             values = []
             
-            if usuario.user_name is not None:
+            if user.user_name is not None:
                 updates.append("user_name = %s")
-                values.append(usuario.user_name)
+                values.append(user.user_name)
             
-            if usuario.user_type is not None:
+            if user.user_type is not None:
                 updates.append("user_type = %s")
-                values.append(usuario.user_type)
+                values.append(user.user_type)
             
-            if usuario.password is not None:
+            if user.password is not None:
                 salt = bcrypt.gensalt()
-                hash_password = bcrypt.hashpw(usuario.password.encode('utf-8'), salt)
+                hash_password = bcrypt.hashpw(user.password.encode('utf-8'), salt)
                 hash_password_str = hash_password.decode('utf-8')
                 updates.append("hash_password = %s")
                 values.append(hash_password_str)
@@ -218,9 +218,9 @@ async def atualizar_usuario(user_id: int, usuario: UsuarioUpdate):
                 RETURNING user_id, user_name, user_type, created_at
             """
             cur.execute(query, values)
-            usuario_atualizado = cur.fetchone()
+            updated_user = cur.fetchone()
             conn.commit()
-            return dict(usuario_atualizado)
+            return dict(updated_user)
     except HTTPException:
         raise
     except psycopg2.IntegrityError as e:
@@ -239,7 +239,7 @@ async def atualizar_usuario(user_id: int, usuario: UsuarioUpdate):
 
 
 @router.delete("/{user_id}", status_code=204)
-async def deletar_usuario(user_id: int):
+async def delete_user(user_id: int):
     """Deleta um usuário"""
     conn = None
     try:

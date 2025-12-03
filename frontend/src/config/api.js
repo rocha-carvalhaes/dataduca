@@ -54,32 +54,32 @@ export const api = {
   },
 
   // Endpoints específicos
-  atividades: {
-    async obterParamsDigitacao() {
-      return api.request('/api/atividades/digitacao/params')
+  activities: {
+    async getTypingParams() {
+      return api.request('/api/activities/typing/params')
     },
   },
-  usuarios: {
-    async listar() {
-      return api.request('/api/usuarios/')
+  users: {
+    async list() {
+      return api.request('/api/users/')
     },
-    async obter(userId) {
-      return api.request(`/api/usuarios/${userId}`)
+    async get(userId) {
+      return api.request(`/api/users/${userId}`)
     },
-    async criar(dados) {
-      return api.request('/api/usuarios/', {
+    async create(data) {
+      return api.request('/api/users/', {
         method: 'POST',
-        body: JSON.stringify(dados),
+        body: JSON.stringify(data),
       })
     },
-    async atualizar(userId, dados) {
-      return api.request(`/api/usuarios/${userId}`, {
+    async update(userId, data) {
+      return api.request(`/api/users/${userId}`, {
         method: 'PUT',
-        body: JSON.stringify(dados),
+        body: JSON.stringify(data),
       })
     },
-    async deletar(userId) {
-      return api.request(`/api/usuarios/${userId}`, {
+    async delete(userId) {
+      return api.request(`/api/users/${userId}`, {
         method: 'DELETE',
       })
     },

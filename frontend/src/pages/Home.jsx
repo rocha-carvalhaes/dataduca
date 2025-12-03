@@ -1,4 +1,4 @@
-function Inicio() {
+function Home() {
   return (
     <div className="p-6">
       <div className="mb-6">
@@ -10,9 +10,9 @@ function Inicio() {
         </p>
       </div>
 
-      {/* Cards de métricas */}
+      {/* Metrics cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        {/* Progresso Recente */}
+        {/* Recent Progress */}
         <div className="bg-white rounded-lg shadow p-6 border border-[#D9D9D9]">
           <div className="flex items-center justify-between mb-4">
             <div>
@@ -80,7 +80,7 @@ function Inicio() {
         </div>
       </div>
 
-      {/* Seção de conteúdo principal */}
+      {/* Main content section */}
       <div className="bg-white rounded-lg shadow p-6 border border-[#D9D9D9]">
         <h2 className="text-xl font-semibold text-[#333333] mb-4">
           Visão Geral
@@ -93,5 +93,5 @@ function Inicio() {
   )
 }
 
-export default Inicio
+export default Home
 

@@ -1,12 +1,12 @@
-function Atividades({ onAbrirAtividade }) {
-  // TODO: Carregar atividades do backend
-  const atividades = [
+function Activities({ onOpenActivity }) {
+  // TODO: Load activities from backend
+  const activities = [
     {
       id: 1,
-      titulo: 'Digitação com Bolhas',
-      descricao: 'Pratique digitação enquanto estoura bolhas de sabão!',
-      tipo: 'digitacao',
-      icone: '💭',
+      title: 'Digitação com Bolhas',
+      description: 'Pratique digitação enquanto estoura bolhas de sabão!',
+      type: 'digitacao',
+      icon: '💭',
     },
   ]
 
@@ -21,7 +21,7 @@ function Atividades({ onAbrirAtividade }) {
         </p>
       </div>
 
-      {/* Barra de busca */}
+      {/* Search bar */}
       <div className="bg-white rounded-lg shadow p-4 mb-6 border border-[#D9D9D9]">
         <div className="relative">
           <input
@@ -45,28 +45,28 @@ function Atividades({ onAbrirAtividade }) {
         </div>
       </div>
 
-      {/* Cards de atividades */}
+      {/* Activity cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {atividades.map((atividade) => (
+        {activities.map((activity) => (
           <div
-            key={atividade.id}
-            onClick={() => onAbrirAtividade && onAbrirAtividade(atividade.id, atividade.tipo)}
+            key={activity.id}
+            onClick={() => onOpenActivity && onOpenActivity(activity.id, activity.type)}
             className="bg-white rounded-lg shadow border border-[#D9D9D9] p-6 cursor-pointer hover:shadow-lg transition-all hover:border-[#E6A8D7] group"
           >
             <div className="flex items-center gap-4 mb-4">
-              <div className="text-4xl">{atividade.icone}</div>
+              <div className="text-4xl">{activity.icon}</div>
               <div className="flex-1">
                 <h3 className="text-xl font-semibold text-[#333333] group-hover:text-[#E6A8D7] transition-colors">
-                  {atividade.titulo}
+                  {activity.title}
                 </h3>
               </div>
             </div>
             <p className="text-sm text-[#777777] mb-4">
-              {atividade.descricao}
+              {activity.description}
             </p>
             <div className="flex items-center justify-between">
               <span className="text-xs text-[#6E6E6E] bg-[#F5F6F7] px-2 py-1 rounded">
-                {atividade.tipo}
+                {activity.type}
               </span>
               <svg
                 className="w-5 h-5 text-[#6E6E6E] group-hover:text-[#E6A8D7] transition-colors"
@@ -89,5 +89,5 @@ function Atividades({ onAbrirAtividade }) {
   )
 }
 
-export default Atividades
+export default Activities
 

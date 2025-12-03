@@ -1,14 +1,14 @@
 import { useState } from 'react'
 import Sidebar from './Sidebar'
-import Inicio from '../pages/Inicio'
-import Atividades from '../pages/Atividades'
-import AtividadeDigitacao from '../pages/AtividadeDigitacao'
-import Gerenciar from '../pages/Gerenciar'
+import Home from '../pages/Home'
+import Activities from '../pages/Activities'
+import TypingActivity from '../pages/TypingActivity'
+import Manage from '../pages/Manage'
 
 function Layout() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
-  const [currentPage, setCurrentPage] = useState('inicio')
-  const [atividadeAtual, setAtividadeAtual] = useState(null)
+  const [currentPage, setCurrentPage] = useState('home')
+  const [currentActivity, setCurrentActivity] = useState(null)
 
   const handleToggleSidebar = () => {
     setIsSidebarCollapsed(!isSidebarCollapsed)
@@ -16,36 +16,36 @@ function Layout() {
 
   const handlePageChange = (pageId) => {
     setCurrentPage(pageId)
-    setAtividadeAtual(null)
+    setCurrentActivity(null)
   }
 
-  const handleAbrirAtividade = (atividadeId, tipo) => {
-    setAtividadeAtual({ id: atividadeId, tipo })
+  const handleOpenActivity = (activityId, type) => {
+    setCurrentActivity({ id: activityId, type })
   }
 
-  const handleVoltarAtividades = () => {
-    setAtividadeAtual(null)
-    setCurrentPage('atividades')
+  const handleBackToActivities = () => {
+    setCurrentActivity(null)
+    setCurrentPage('activities')
   }
 
   const renderPage = () => {
-    if (atividadeAtual) {
-      switch (atividadeAtual.tipo) {
+    if (currentActivity) {
+      switch (currentActivity.type) {
         case 'digitacao':
-          return <AtividadeDigitacao onBack={handleVoltarAtividades} />
+          return <TypingActivity onBack={handleBackToActivities} />
         default:
-          return <Atividades onAbrirAtividade={handleAbrirAtividade} />
+          return <Activities onOpenActivity={handleOpenActivity} />
       }
     }
 
     switch (currentPage) {
-      case 'atividades':
-        return <Atividades onAbrirAtividade={handleAbrirAtividade} />
-      case 'gerenciar':
-        return <Gerenciar />
-      case 'inicio':
+      case 'activities':
+        return <Activities onOpenActivity={handleOpenActivity} />
+      case 'manage':
+        return <Manage />
+      case 'home':
       default:
-        return <Inicio />
+        return <Home />
     }
   }
 
@@ -66,9 +66,9 @@ function Layout() {
           <div className="flex items-center justify-between px-6 py-4">
             <div className="flex items-center gap-4">
               <h2 className="text-xl font-semibold text-[#333333]">
-                {atividadeAtual ? 'Atividade' : currentPage === 'inicio' && 'Início'}
-                {!atividadeAtual && currentPage === 'atividades' && 'Atividades'}
-                {!atividadeAtual && currentPage === 'gerenciar' && 'Gerenciar'}
+                {currentActivity ? 'Atividade' : currentPage === 'home' && 'Início'}
+                {!currentActivity && currentPage === 'activities' && 'Atividades'}
+                {!currentActivity && currentPage === 'manage' && 'Gerenciar'}
               </h2>
             </div>
             <div className="flex items-center gap-4">

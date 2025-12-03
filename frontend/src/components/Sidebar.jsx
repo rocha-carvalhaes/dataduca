@@ -1,7 +1,7 @@
 function Sidebar({ isCollapsed, onToggle, currentPage, onPageChange }) {
   const menuItems = [
     {
-      id: 'inicio',
+      id: 'home',
       label: 'Início',
       icon: (
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -10,7 +10,7 @@ function Sidebar({ isCollapsed, onToggle, currentPage, onPageChange }) {
       ),
     },
     {
-      id: 'atividades',
+      id: 'activities',
       label: 'Atividades',
       icon: (
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -19,7 +19,7 @@ function Sidebar({ isCollapsed, onToggle, currentPage, onPageChange }) {
       ),
     },
     {
-      id: 'gerenciar',
+      id: 'manage',
       label: 'Gerenciar',
       icon: (
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
