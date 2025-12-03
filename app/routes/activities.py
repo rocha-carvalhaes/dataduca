@@ -24,4 +24,3 @@ async def get_typing_params():
         total_bubbles=15,
         speed=1.5  # Slow speed
     )
-

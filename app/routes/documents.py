@@ -169,7 +169,11 @@ async def create_document(document: DocumentCreate, current_user: TokenData = De
 
 
 @router.put("/{document_id}", response_model=DocumentResponse)
-async def update_document(document_id: int, document: DocumentUpdate, current_user: TokenData = Depends(get_current_user)):
+async def update_document(
+    document_id: int,
+    document: DocumentUpdate,
+    current_user: TokenData = Depends(get_current_user)
+):
     """Atualiza um documento existente"""
     conn = None
     try:

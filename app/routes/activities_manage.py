@@ -156,8 +156,36 @@ async def create_activity(activity: ActivityCreate, current_user: TokenData = De
             conn.close()
 
 
+def _build_activity_updates(activity: ActivityUpdate):
+    """Constrói a lista de updates e values para atualização de atividade"""
+    updates = []
+    values = []
+
+    if activity.activity_name is not None:
+        updates.append("activity_name = %s")
+        values.append(activity.activity_name)
+
+    if activity.activity_description is not None:
+        updates.append("activity_description = %s")
+        values.append(activity.activity_description)
+
+    if activity.activity_objective is not None:
+        updates.append("activity_objective = %s")
+        values.append(activity.activity_objective)
+
+    if activity.activity_version is not None:
+        updates.append("activity_version = %s")
+        values.append(activity.activity_version)
+
+    return updates, values
+
+
 @router.put("/{activity_id}", response_model=ActivityResponse)
-async def update_activity(activity_id: int, activity: ActivityUpdate, current_user: TokenData = Depends(get_current_user)):
+async def update_activity(
+    activity_id: int,
+    activity: ActivityUpdate,
+    current_user: TokenData = Depends(get_current_user)
+):
     """Atualiza uma atividade existente"""
     conn = None
     try:
@@ -169,24 +197,7 @@ async def update_activity(activity_id: int, activity: ActivityUpdate, current_us
                 raise HTTPException(status_code=404, detail="Atividade não encontrada")
 
             # Monta a query dinamicamente
-            updates = []
-            values = []
-
-            if activity.activity_name is not None:
-                updates.append("activity_name = %s")
-                values.append(activity.activity_name)
-
-            if activity.activity_description is not None:
-                updates.append("activity_description = %s")
-                values.append(activity.activity_description)
-
-            if activity.activity_objective is not None:
-                updates.append("activity_objective = %s")
-                values.append(activity.activity_objective)
-
-            if activity.activity_version is not None:
-                updates.append("activity_version = %s")
-                values.append(activity.activity_version)
+            updates, values = _build_activity_updates(activity)
 
             if not updates:
                 # Se não há atualizações, retorna a atividade atual

@@ -168,8 +168,49 @@ async def create_user(user: UserCreate, current_user: TokenData = Depends(get_cu
             conn.close()
 
 
+def _validate_user_type(user_type: Optional[str]):
+    """Valida o tipo de usuário"""
+    if user_type and user_type not in ['aluno', 'professor']:
+        raise HTTPException(
+            status_code=400,
+            detail="user_type deve ser 'aluno' ou 'professor'"
+        )
+
+
+def _hash_password(password: str) -> str:
+    """Gera hash da senha"""
+    salt = bcrypt.gensalt()
+    hash_password = bcrypt.hashpw(password.encode('utf-8'), salt)
+    return hash_password.decode('utf-8')
+
+
+def _build_user_updates(user: UserUpdate):
+    """Constrói a lista de updates e values para atualização de usuário"""
+    updates = []
+    values = []
+
+    if user.user_name is not None:
+        updates.append("user_name = %s")
+        values.append(user.user_name)
+
+    if user.user_type is not None:
+        updates.append("user_type = %s")
+        values.append(user.user_type)
+
+    if user.password is not None:
+        hash_password_str = _hash_password(user.password)
+        updates.append("hash_password = %s")
+        values.append(hash_password_str)
+
+    return updates, values
+
+
 @router.put("/{user_id}", response_model=UserResponse)
-async def update_user(user_id: int, user: UserUpdate, current_user: TokenData = Depends(get_current_user)):
+async def update_user(
+    user_id: int,
+    user: UserUpdate,
+    current_user: TokenData = Depends(get_current_user)
+):
     """Atualiza um usuário existente"""
     conn = None
     try:
@@ -181,30 +222,10 @@ async def update_user(user_id: int, user: UserUpdate, current_user: TokenData = 
                 raise HTTPException(status_code=404, detail="Usuário não encontrado")
 
             # Validação do tipo de usuário se fornecido
-            if user.user_type and user.user_type not in ['aluno', 'professor']:
-                raise HTTPException(
-                    status_code=400,
-                    detail="user_type deve ser 'aluno' ou 'professor'"
-                )
+            _validate_user_type(user.user_type)
 
             # Monta a query dinamicamente baseado nos campos fornecidos
-            updates = []
-            values = []
-
-            if user.user_name is not None:
-                updates.append("user_name = %s")
-                values.append(user.user_name)
-
-            if user.user_type is not None:
-                updates.append("user_type = %s")
-                values.append(user.user_type)
-
-            if user.password is not None:
-                salt = bcrypt.gensalt()
-                hash_password = bcrypt.hashpw(user.password.encode('utf-8'), salt)
-                hash_password_str = hash_password.decode('utf-8')
-                updates.append("hash_password = %s")
-                values.append(hash_password_str)
+            updates, values = _build_user_updates(user)
 
             if not updates:
                 # Se não há atualizações, retorna o usuário atual
@@ -268,4 +289,3 @@ async def delete_user(user_id: int, current_user: TokenData = Depends(get_curren
     finally:
         if conn:
             conn.close()
-
