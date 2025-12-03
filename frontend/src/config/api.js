@@ -7,9 +7,14 @@ export const api = {
   // Função auxiliar para fazer requisições
   async request(endpoint, options = {}) {
     const url = `${API_BASE_URL}${endpoint}`
+    
+    // Obter token do localStorage se existir
+    const token = localStorage.getItem('auth_token')
+    
     const config = {
       headers: {
         'Content-Type': 'application/json',
+        ...(token && { 'Authorization': `Bearer ${token}` }),
         ...options.headers,
       },
       ...options,
@@ -57,6 +62,25 @@ export const api = {
   activities: {
     async getTypingParams() {
       return api.request('/api/activities/typing/params')
+    },
+  },
+  auth: {
+    async login(username, password) {
+      return api.request('/api/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ username, password }),
+      })
+    },
+    async logout() {
+      return api.request('/api/auth/logout', {
+        method: 'POST',
+      })
+    },
+    async verify() {
+      return api.request('/api/auth/verify')
+    },
+    async getCurrentUser() {
+      return api.request('/api/auth/me')
     },
   },
   users: {

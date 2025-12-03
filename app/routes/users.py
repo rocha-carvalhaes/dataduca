@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import List, Optional
 import psycopg2
@@ -8,6 +8,7 @@ from datetime import datetime
 import bcrypt
 import logging
 from dotenv import load_dotenv
+from app.routes.auth import get_current_user, TokenData
 
 # Carregar variáveis de ambiente do arquivo .env
 load_dotenv()
@@ -69,7 +70,7 @@ class UserResponse(BaseModel):
 
 
 @router.get("/", response_model=List[UserResponse])
-async def list_users():
+async def list_users(current_user: TokenData = Depends(get_current_user)):
     """Lista todos os usuários"""
     conn = None
     try:
@@ -119,7 +120,7 @@ async def get_user(user_id: int):
 
 
 @router.post("/", response_model=UserResponse, status_code=201)
-async def create_user(user: UserCreate):
+async def create_user(user: UserCreate, current_user: TokenData = Depends(get_current_user)):
     """Cria um novo usuário"""
     # Validação do tipo de usuário
     if user.user_type not in ['aluno', 'professor']:
@@ -164,7 +165,7 @@ async def create_user(user: UserCreate):
 
 
 @router.put("/{user_id}", response_model=UserResponse)
-async def update_user(user_id: int, user: UserUpdate):
+async def update_user(user_id: int, user: UserUpdate, current_user: TokenData = Depends(get_current_user)):
     """Atualiza um usuário existente"""
     conn = None
     try:
@@ -239,7 +240,7 @@ async def update_user(user_id: int, user: UserUpdate):
 
 
 @router.delete("/{user_id}", status_code=204)
-async def delete_user(user_id: int):
+async def delete_user(user_id: int, current_user: TokenData = Depends(get_current_user)):
     """Deleta um usuário"""
     conn = None
     try:

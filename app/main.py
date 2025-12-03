@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routes import health_check, activities, users
+from app.routes import health_check, activities, users, auth
 from app.core.config import settings
 
 # Cria a instância da aplicação FastAPI
@@ -22,6 +22,7 @@ app.add_middleware(
 
 # Inclui os routers
 app.include_router(health_check.router)
+app.include_router(auth.router)
 app.include_router(activities.router)
 app.include_router(users.router)
 

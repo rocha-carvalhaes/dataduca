@@ -1,35 +1,45 @@
 import { useState } from 'react'
 import dataducaLogo from '../assets/dataduca_logo_01.png'
+import api from '../config/api'
+import { authStorage } from '../utils/auth'
 
 function Login({ onLoginSuccess }) {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState(null)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     
     if (!username || !password) {
-      alert('Por favor, preencha todos os campos')
+      setError('Por favor, preencha todos os campos')
       return
     }
 
     setIsLoading(true)
+    setError(null)
     
-    // TODO: Implementar chamada à API de autenticação
     try {
-      // Simulação de login
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      console.log('Login:', { username, password })
-      // Aqui você fará a chamada à API
+      const response = await api.auth.login(username, password)
+      
+      // Salvar token e informações do usuário
+      authStorage.setToken(response.access_token)
+      authStorage.setUser({
+        user_id: response.user_id,
+        user_name: response.user_name,
+        user_type: response.user_type
+      })
+      
       // Após sucesso, chama o callback
       if (onLoginSuccess) {
         onLoginSuccess()
       }
-    } catch (error) {
-      console.error('Erro ao fazer login:', error)
-      alert('Erro ao fazer login. Tente novamente.')
+    } catch (err) {
+      const errorMessage = err.message || 'Erro ao fazer login. Verifique suas credenciais.'
+      setError(errorMessage)
+      console.error('Erro ao fazer login:', err)
     } finally {
       setIsLoading(false)
     }
@@ -61,6 +71,13 @@ function Login({ onLoginSuccess }) {
               Entre com suas credenciais para continuar
             </p>
           </div>
+
+          {/* Mensagem de erro */}
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+              {error}
+            </div>
+          )}
 
           {/* Formulário */}
           <form onSubmit={handleSubmit} className="space-y-5">
