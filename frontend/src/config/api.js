@@ -108,6 +108,41 @@ export const api = {
       })
     },
   },
+  userSessions: {
+    async list() {
+      return api.request('/api/user-sessions/')
+    },
+  },
+  activities: {
+    async list() {
+      return api.request('/api/activities/list')
+    },
+    async get(activityId) {
+      return api.request(`/api/activities/${activityId}`)
+    },
+    async create(data) {
+      return api.request('/api/activities/', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      })
+    },
+    async update(activityId, data) {
+      return api.request(`/api/activities/${activityId}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      })
+    },
+    async delete(activityId) {
+      return api.request(`/api/activities/${activityId}`, {
+        method: 'DELETE',
+      })
+    },
+  },
+  activitySessions: {
+    async list() {
+      return api.request('/api/activity-sessions/')
+    },
+  },
 }
 
 export default api
