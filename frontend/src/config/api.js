@@ -59,11 +59,6 @@ export const api = {
   },
 
   // Endpoints específicos
-  activities: {
-    async getTypingParams() {
-      return api.request('/api/activities/typing/params')
-    },
-  },
   auth: {
     async login(username, password) {
       return api.request('/api/auth/login', {
@@ -114,6 +109,9 @@ export const api = {
     },
   },
   activities: {
+    async getTypingParams() {
+      return api.request('/api/activities/typing/params')
+    },
     async list() {
       return api.request('/api/activities/list')
     },
