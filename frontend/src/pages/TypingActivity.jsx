@@ -8,7 +8,7 @@ function TypingActivity({ onBack }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [generatedCharacters, setGeneratedCharacters] = useState([])
-  const [loopActive, setLoopActive] = useState(false)
+  // const [loopActive, setLoopActive] = useState(false)
   const [bubbles, setBubbles] = useState([])
   const [gameStarted, setGameStarted] = useState(false)
   const [generatedBubbles, setGeneratedBubbles] = useState([]) // Track all bubbles generated in the game
