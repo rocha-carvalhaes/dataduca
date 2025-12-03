@@ -1,47 +1,47 @@
-import { useState, useEffect } from 'react'
-import Login from './components/Login'
-import Layout from './components/Layout'
-import { authStorage } from './utils/auth'
-import api from './config/api'
+import { useState, useEffect } from 'react';
+import Login from './components/Login';
+import Layout from './components/Layout';
+import { authStorage } from './utils/auth';
+import api from './config/api';
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [isCheckingAuth, setIsCheckingAuth] = useState(true)
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
   useEffect(() => {
     // Verificar se há token válido ao carregar
     const checkAuth = async () => {
-      const token = authStorage.getToken()
+      const token = authStorage.getToken();
       if (token) {
         try {
-          await api.auth.verify()
-          setIsAuthenticated(true)
+          await api.auth.verify();
+          setIsAuthenticated(true);
         } catch {
           // Token inválido ou expirado
-          authStorage.clear()
-          setIsAuthenticated(false)
+          authStorage.clear();
+          setIsAuthenticated(false);
         }
       }
-      setIsCheckingAuth(false)
-    }
-    
-    checkAuth()
-  }, [])
+      setIsCheckingAuth(false);
+    };
+
+    checkAuth();
+  }, []);
 
   const handleLoginSuccess = () => {
-    setIsAuthenticated(true)
-  }
+    setIsAuthenticated(true);
+  };
 
   const handleLogout = async () => {
     try {
-      await api.auth.logout()
+      await api.auth.logout();
     } catch (error) {
-      console.error('Erro ao fazer logout:', error)
+      console.error('Erro ao fazer logout:', error);
     } finally {
-      authStorage.clear()
-      setIsAuthenticated(false)
+      authStorage.clear();
+      setIsAuthenticated(false);
     }
-  }
+  };
 
   if (isCheckingAuth) {
     return (
@@ -51,14 +51,14 @@ function App() {
           <p className="text-[#777777]">Verificando autenticação...</p>
         </div>
       </div>
-    )
+    );
   }
 
   if (isAuthenticated) {
-    return <Layout onLogout={handleLogout} />
+    return <Layout onLogout={handleLogout} />;
   }
 
-  return <Login onLoginSuccess={handleLoginSuccess} />
+  return <Login onLoginSuccess={handleLoginSuccess} />;
 }
 
-export default App
+export default App;

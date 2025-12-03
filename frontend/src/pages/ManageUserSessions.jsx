@@ -1,40 +1,42 @@
-import { useState, useEffect } from 'react'
-import api from '../config/api'
+import { useState, useEffect } from 'react';
+import api from '../config/api';
 
 function ManageUserSessions() {
-  const [sessions, setSessions] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const [sessions, setSessions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    loadSessions()
-  }, [])
+    loadSessions();
+  }, []);
 
   const loadSessions = async () => {
     try {
-      setLoading(true)
-      setError(null)
-      const data = await api.userSessions.list()
-      setSessions(data)
+      setLoading(true);
+      setError(null);
+      const data = await api.userSessions.list();
+      setSessions(data);
     } catch (err) {
-      setError(err.message || 'Erro ao carregar sessões de usuários. Tente novamente.')
-      console.error(err)
+      setError(
+        err.message || 'Erro ao carregar sessões de usuários. Tente novamente.'
+      );
+      console.error(err);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const formatDate = (dateString) => {
-    if (!dateString) return '-'
-    return new Date(dateString).toLocaleString('pt-BR')
-  }
+    if (!dateString) return '-';
+    return new Date(dateString).toLocaleString('pt-BR');
+  };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="text-[#6E6E6E]">Carregando sessões...</div>
       </div>
-    )
+    );
   }
 
   return (
@@ -70,13 +72,19 @@ function ManageUserSessions() {
             <tbody className="divide-y divide-[#D9D9D9]">
               {sessions.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="px-6 py-8 text-center text-[#6E6E6E]">
+                  <td
+                    colSpan="5"
+                    className="px-6 py-8 text-center text-[#6E6E6E]"
+                  >
                     Nenhuma sessão encontrada
                   </td>
                 </tr>
               ) : (
                 sessions.map((session) => (
-                  <tr key={session.user_session_id} className="hover:bg-[#F5F6F7]">
+                  <tr
+                    key={session.user_session_id}
+                    className="hover:bg-[#F5F6F7]"
+                  >
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-[#333333]">
                       {session.user_session_id}
                     </td>
@@ -90,11 +98,13 @@ function ManageUserSessions() {
                       {formatDate(session.ended_at)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${
-                        session.ended_at
-                          ? 'bg-gray-200 text-gray-700'
-                          : 'bg-[#B8E3C0] text-[#333333]'
-                      }`}>
+                      <span
+                        className={`px-2 py-1 rounded text-xs font-medium ${
+                          session.ended_at
+                            ? 'bg-gray-200 text-gray-700'
+                            : 'bg-[#B8E3C0] text-[#333333]'
+                        }`}
+                      >
                         {session.ended_at ? 'Encerrada' : 'Ativa'}
                       </span>
                     </td>
@@ -106,8 +116,7 @@ function ManageUserSessions() {
         </div>
       </div>
     </div>
-  )
+  );
 }
 
-export default ManageUserSessions
-
+export default ManageUserSessions;

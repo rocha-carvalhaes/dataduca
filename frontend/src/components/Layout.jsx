@@ -1,64 +1,64 @@
-import { useState, useEffect } from 'react'
-import Sidebar from './Sidebar'
-import Home from '../pages/Home'
-import Activities from '../pages/Activities'
-import TypingActivity from '../pages/TypingActivity'
-import Manage from '../pages/Manage'
-import Documents from '../pages/Documents'
-import { authStorage } from '../utils/auth'
+import { useState, useEffect } from 'react';
+import Sidebar from './Sidebar';
+import Home from '../pages/Home';
+import Activities from '../pages/Activities';
+import TypingActivity from '../pages/TypingActivity';
+import Manage from '../pages/Manage';
+import Documents from '../pages/Documents';
+import { authStorage } from '../utils/auth';
 
 function Layout({ onLogout }) {
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
-  const [currentPage, setCurrentPage] = useState('home')
-  const [currentActivity, setCurrentActivity] = useState(null)
-  const [currentUser, setCurrentUser] = useState(null)
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [currentPage, setCurrentPage] = useState('home');
+  const [currentActivity, setCurrentActivity] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
 
   useEffect(() => {
     // Carregar informações do usuário
-    const user = authStorage.getUser()
-    setCurrentUser(user)
-  }, [])
+    const user = authStorage.getUser();
+    setCurrentUser(user);
+  }, []);
 
   const handleToggleSidebar = () => {
-    setIsSidebarCollapsed(!isSidebarCollapsed)
-  }
+    setIsSidebarCollapsed(!isSidebarCollapsed);
+  };
 
   const handlePageChange = (pageId) => {
-    setCurrentPage(pageId)
-    setCurrentActivity(null)
-  }
+    setCurrentPage(pageId);
+    setCurrentActivity(null);
+  };
 
   const handleOpenActivity = (activityId, type) => {
-    setCurrentActivity({ id: activityId, type })
-  }
+    setCurrentActivity({ id: activityId, type });
+  };
 
   const handleBackToActivities = () => {
-    setCurrentActivity(null)
-    setCurrentPage('activities')
-  }
+    setCurrentActivity(null);
+    setCurrentPage('activities');
+  };
 
   const renderPage = () => {
     if (currentActivity) {
       switch (currentActivity.type) {
         case 'digitacao':
-          return <TypingActivity onBack={handleBackToActivities} />
+          return <TypingActivity onBack={handleBackToActivities} />;
         default:
-          return <Activities onOpenActivity={handleOpenActivity} />
+          return <Activities onOpenActivity={handleOpenActivity} />;
       }
     }
 
     switch (currentPage) {
       case 'activities':
-        return <Activities onOpenActivity={handleOpenActivity} />
+        return <Activities onOpenActivity={handleOpenActivity} />;
       case 'manage':
-        return <Manage />
+        return <Manage />;
       case 'documents':
-        return <Documents />
+        return <Documents />;
       case 'home':
       default:
-        return <Home />
+        return <Home />;
     }
-  }
+  };
 
   return (
     <div className="flex h-screen bg-[#F5F6F7] overflow-hidden">
@@ -77,19 +77,29 @@ function Layout({ onLogout }) {
           <div className="flex items-center justify-between px-6 py-4">
             <div className="flex items-center gap-4">
               <h2 className="text-xl font-semibold text-[#333333]">
-                {currentActivity ? 'Atividade' : currentPage === 'home' && 'Início'}
-                {!currentActivity && currentPage === 'activities' && 'Atividades'}
+                {currentActivity
+                  ? 'Atividade'
+                  : currentPage === 'home' && 'Início'}
+                {!currentActivity &&
+                  currentPage === 'activities' &&
+                  'Atividades'}
                 {!currentActivity && currentPage === 'manage' && 'Gerenciar'}
-                {!currentActivity && currentPage === 'documents' && 'Documentação'}
+                {!currentActivity &&
+                  currentPage === 'documents' &&
+                  'Documentação'}
               </h2>
             </div>
             <div className="flex items-center gap-4">
               {currentUser && (
                 <div className="flex items-center gap-3 px-3 py-1.5 rounded-lg bg-[#F5F6F7]">
                   <div className="text-sm">
-                    <p className="font-medium text-[#333333]">{currentUser.user_name}</p>
+                    <p className="font-medium text-[#333333]">
+                      {currentUser.user_name}
+                    </p>
                     <p className="text-xs text-[#6E6E6E]">
-                      {currentUser.user_type === 'professor' ? 'Professor' : 'Aluno'}
+                      {currentUser.user_type === 'professor'
+                        ? 'Professor'
+                        : 'Aluno'}
                     </p>
                   </div>
                 </div>
@@ -118,13 +128,10 @@ function Layout({ onLogout }) {
         </header>
 
         {/* Área de Conteúdo */}
-        <main className="flex-1 overflow-y-auto">
-          {renderPage()}
-        </main>
+        <main className="flex-1 overflow-y-auto">{renderPage()}</main>
       </div>
     </div>
-  )
+  );
 }
 
-export default Layout
-
+export default Layout;

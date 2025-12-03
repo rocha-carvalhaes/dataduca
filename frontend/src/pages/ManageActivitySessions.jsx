@@ -1,49 +1,54 @@
-import { useState, useEffect } from 'react'
-import api from '../config/api'
+import { useState, useEffect } from 'react';
+import api from '../config/api';
 
 function ManageActivitySessions() {
-  const [sessions, setSessions] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const [sessions, setSessions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    loadSessions()
-  }, [])
+    loadSessions();
+  }, []);
 
   const loadSessions = async () => {
     try {
-      setLoading(true)
-      setError(null)
-      const data = await api.activitySessions.list()
-      setSessions(data)
+      setLoading(true);
+      setError(null);
+      const data = await api.activitySessions.list();
+      setSessions(data);
     } catch (err) {
-      setError(err.message || 'Erro ao carregar sessões de atividades. Tente novamente.')
-      console.error(err)
+      setError(
+        err.message ||
+          'Erro ao carregar sessões de atividades. Tente novamente.'
+      );
+      console.error(err);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const formatDate = (dateString) => {
-    if (!dateString) return '-'
-    return new Date(dateString).toLocaleString('pt-BR')
-  }
+    if (!dateString) return '-';
+    return new Date(dateString).toLocaleString('pt-BR');
+  };
 
   const formatResults = (results) => {
-    if (!results || typeof results !== 'object') return '-'
+    if (!results || typeof results !== 'object') return '-';
     try {
-      return JSON.stringify(results, null, 2)
+      return JSON.stringify(results, null, 2);
     } catch {
-      return String(results)
+      return String(results);
     }
-  }
+  };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-[#6E6E6E]">Carregando sessões de atividades...</div>
+        <div className="text-[#6E6E6E]">
+          Carregando sessões de atividades...
+        </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -82,13 +87,19 @@ function ManageActivitySessions() {
             <tbody className="divide-y divide-[#D9D9D9]">
               {sessions.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="px-6 py-8 text-center text-[#6E6E6E]">
+                  <td
+                    colSpan="6"
+                    className="px-6 py-8 text-center text-[#6E6E6E]"
+                  >
                     Nenhuma sessão de atividade encontrada
                   </td>
                 </tr>
               ) : (
                 sessions.map((session) => (
-                  <tr key={session.activity_session_id} className="hover:bg-[#F5F6F7]">
+                  <tr
+                    key={session.activity_session_id}
+                    className="hover:bg-[#F5F6F7]"
+                  >
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-[#333333]">
                       {session.activity_session_id}
                     </td>
@@ -99,7 +110,10 @@ function ManageActivitySessions() {
                       {session.activity_name}
                     </td>
                     <td className="px-6 py-4 text-sm text-[#6E6E6E] max-w-xs">
-                      <div className="truncate" title={formatResults(session.results)}>
+                      <div
+                        className="truncate"
+                        title={formatResults(session.results)}
+                      >
                         {formatResults(session.results)}
                       </div>
                     </td>
@@ -117,8 +131,7 @@ function ManageActivitySessions() {
         </div>
       </div>
     </div>
-  )
+  );
 }
 
-export default ManageActivitySessions
-
+export default ManageActivitySessions;
