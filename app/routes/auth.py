@@ -152,7 +152,15 @@ async def login(login_data: LoginRequest):
                     detail="Usuário ou senha incorretos"
                 )
             
-            # Criar sessão no banco
+            # Encerrar sessões ativas do usuário antes de criar uma nova
+            cur.execute("""
+                UPDATE user_sessions
+                SET ended_at = NOW()
+                WHERE user_id = %s 
+                AND ended_at IS NULL
+            """, (user['user_id'],))
+            
+            # Criar nova sessão no banco
             cur.execute("""
                 INSERT INTO user_sessions (user_id)
                 VALUES (%s)
