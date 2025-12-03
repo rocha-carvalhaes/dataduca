@@ -25,7 +25,20 @@ export const api = {
       clearTimeout(timeoutId)
       
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
+        // Tenta obter a mensagem de erro do servidor
+        let errorMessage = `Erro HTTP ${response.status}`
+        try {
+          const errorData = await response.json()
+          if (errorData.detail) {
+            errorMessage = errorData.detail
+          } else if (errorData.message) {
+            errorMessage = errorData.message
+          }
+        } catch {
+          // Se não conseguir parsear JSON, usa a mensagem padrão
+          errorMessage = `Erro HTTP ${response.status}: ${response.statusText}`
+        }
+        throw new Error(errorMessage)
       }
       
       return await response.json()
@@ -44,6 +57,31 @@ export const api = {
   atividades: {
     async obterParamsDigitacao() {
       return api.request('/api/atividades/digitacao/params')
+    },
+  },
+  usuarios: {
+    async listar() {
+      return api.request('/api/usuarios/')
+    },
+    async obter(userId) {
+      return api.request(`/api/usuarios/${userId}`)
+    },
+    async criar(dados) {
+      return api.request('/api/usuarios/', {
+        method: 'POST',
+        body: JSON.stringify(dados),
+      })
+    },
+    async atualizar(userId, dados) {
+      return api.request(`/api/usuarios/${userId}`, {
+        method: 'PUT',
+        body: JSON.stringify(dados),
+      })
+    },
+    async deletar(userId) {
+      return api.request(`/api/usuarios/${userId}`, {
+        method: 'DELETE',
+      })
     },
   },
 }

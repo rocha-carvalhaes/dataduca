@@ -210,16 +210,16 @@ function AtividadeDigitacao({ onBack }) {
     }
   }, [loopAtivo, velocidade, caracteres.length, adicionarCaractere])
 
-  // Função para remover a primeira ocorrência de um caractere da lista
-  const removerCaractere = (caractere) => {
-    setCaracteresGerados(prev => {
-      const indice = prev.findIndex(char => char === caractere)
-      if (indice !== -1) {
-        return prev.filter((_, i) => i !== indice)
-      }
-      return prev
-    })
-  }
+  // // Função para remover a primeira ocorrência de um caractere da lista
+  // const removerCaractere = (caractere) => {
+  //   setCaracteresGerados(prev => {
+  //     const indice = prev.findIndex(char => char === caractere)
+  //     if (indice !== -1) {
+  //       return prev.filter((_, i) => i !== indice)
+  //     }
+  //     return prev
+  //   })
+  // }
 
   // Listener para capturar teclas pressionadas
   useEffect(() => {

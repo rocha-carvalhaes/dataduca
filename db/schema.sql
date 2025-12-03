@@ -7,44 +7,51 @@
 DROP SCHEMA IF EXISTS public CASCADE;
 CREATE SCHEMA public;
 
-CREATE TABLE usuarios (
-    id SERIAL PRIMARY KEY,
-    nome VARCHAR(100) NOT NULL,
-    senha_hash TEXT NOT NULL,
-    tipo_usuario VARCHAR(20) CHECK (tipo_usuario IN ('crianca', 'professor', 'admin')),
-    criado_em TIMESTAMP DEFAULT NOW()
+-- ======================================
+-- Tabela de usuários
+-- ======================================
+CREATE TABLE users (
+    user_id SERIAL PRIMARY KEY,
+    user_name VARCHAR(100) NOT NULL,
+    user_type VARCHAR(20) NOT NULL CHECK (user_type IN ('aluno', 'professor')),
+    hash_password TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE TABLE sessoes (
-    id SERIAL PRIMARY KEY,
-    usuario_id INT NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
-    iniciada_em TIMESTAMP NOT NULL,
-    finalizada_em TIMESTAMP,
-    criado_em TIMESTAMP DEFAULT NOW()
+-- ======================================
+-- Sessão de login (user_session)
+-- ======================================
+CREATE TABLE user_sessions (
+    user_session_id SERIAL PRIMARY KEY,
+    user_id INT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    initiated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    ended_at TIMESTAMP
 );
 
-CREATE TABLE atividades (
-    id SERIAL PRIMARY KEY,
-    sessao_id INT NOT NULL REFERENCES sessoes(id) ON DELETE CASCADE,
-    descricao VARCHAR(100) NOT NULL,
-    iniciada_em TIMESTAMP NOT NULL,
-    finalizada_em TIMESTAMP,
-    criado_em TIMESTAMP DEFAULT NOW()
+-- ======================================
+-- Cadastro de atividades
+-- ======================================
+CREATE TABLE activities (
+    activity_id SERIAL PRIMARY KEY,
+    activity_name VARCHAR(200) NOT NULL,
+    activity_description TEXT,
+    activity_objective TEXT,
+    activity_version VARCHAR(50) NOT NULL DEFAULT '1.0',
+    updated_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE TABLE acoes (
-    id SERIAL PRIMARY KEY,
-    atividade_id INT NOT NULL REFERENCES atividades(id) ON DELETE CASCADE,
-    tipo VARCHAR(30),
-    descricao VARCHAR(100) NOT NULL,
-    coordenada_x DECIMAL(10, 8) NOT NULL,
-    coordenada_y DECIMAL(11, 8) NOT NULL,
-    duracao_segundos INT NOT NULL,
-    iniciada_em TIMESTAMP NOT NULL,
-    finalizada_em TIMESTAMP,
-    criado_em TIMESTAMP DEFAULT NOW()
+-- ======================================
+-- Sessões dentro de atividades
+-- ======================================
+CREATE TABLE activity_sessions (
+    activity_session_id SERIAL PRIMARY KEY,
+    user_session_id INT NOT NULL REFERENCES user_sessions(user_session_id) ON DELETE CASCADE,
+    activity_id INT NOT NULL REFERENCES activities(activity_id),
+    results JSONB NOT NULL,
+    initiated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    ended_at TIMESTAMP
 );
 
-CREATE INDEX idx_sessoes_usuario_id ON sessoes(usuario_id);
-CREATE INDEX idx_atividades_sessao_id ON atividades(sessao_id);
-CREATE INDEX idx_acoes_atividade_id ON acoes(atividade_id);
+
+CREATE INDEX idx_activity_sessions_user_session_id ON activity_sessions(user_session_id);
+CREATE INDEX idx_activity_sessions_activity_id ON activity_sessions(activity_id);

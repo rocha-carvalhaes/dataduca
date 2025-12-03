@@ -3,6 +3,7 @@ import Sidebar from './Sidebar'
 import Inicio from '../pages/Inicio'
 import Atividades from '../pages/Atividades'
 import AtividadeDigitacao from '../pages/AtividadeDigitacao'
+import Gerenciar from '../pages/Gerenciar'
 
 function Layout() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
@@ -40,6 +41,8 @@ function Layout() {
     switch (currentPage) {
       case 'atividades':
         return <Atividades onAbrirAtividade={handleAbrirAtividade} />
+      case 'gerenciar':
+        return <Gerenciar />
       case 'inicio':
       default:
         return <Inicio />
@@ -65,6 +68,7 @@ function Layout() {
               <h2 className="text-xl font-semibold text-[#333333]">
                 {atividadeAtual ? 'Atividade' : currentPage === 'inicio' && 'Início'}
                 {!atividadeAtual && currentPage === 'atividades' && 'Atividades'}
+                {!atividadeAtual && currentPage === 'gerenciar' && 'Gerenciar'}
               </h2>
             </div>
             <div className="flex items-center gap-4">
