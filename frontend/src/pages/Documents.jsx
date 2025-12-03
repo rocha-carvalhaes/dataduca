@@ -249,7 +249,6 @@ function Documents() {
                       }
                     }}
                     className="text-lg font-semibold text-[#333333] bg-white border border-[#E6A8D7] rounded px-2 py-1 outline-none focus:ring-2 focus:ring-[#E6A8D7]"
-                    autoFocus
                   />
                 ) : (
                   <div className="flex items-center gap-2 flex-1">
@@ -260,6 +259,14 @@ function Documents() {
                           setIsEditingName(true)
                         }
                       }}
+                      onKeyDown={(e) => {
+                        if ((e.key === 'Enter' || e.key === ' ') && !isPreviewMode && (selectedDocument || isNewDocument)) {
+                          e.preventDefault()
+                          setIsEditingName(true)
+                        }
+                      }}
+                      role="button"
+                      tabIndex={0}
                       title="Clique para editar o nome"
                     >
                       {documentName || (isNewDocument ? 'Novo Documento' : selectedDocument ? `Documento #${selectedDocument.document_id}` : 'Selecione um documento')}
@@ -448,6 +455,14 @@ function Documents() {
                     <div
                       key={doc.document_id}
                       onClick={() => handleSelectDocument(doc)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          handleSelectDocument(doc)
+                        }
+                      }}
+                      role="button"
+                      tabIndex={0}
                       className={`p-4 cursor-pointer hover:bg-[#F5F6F7] transition-colors ${
                         selectedDocument?.document_id === doc.document_id
                           ? 'bg-[#E6A8D7] bg-opacity-10 border-l-4 border-[#E6A8D7]'

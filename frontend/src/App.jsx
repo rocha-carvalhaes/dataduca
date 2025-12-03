@@ -16,7 +16,7 @@ function App() {
         try {
           await api.auth.verify()
           setIsAuthenticated(true)
-        } catch (error) {
+        } catch {
           // Token inválido ou expirado
           authStorage.clear()
           setIsAuthenticated(false)

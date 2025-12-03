@@ -162,12 +162,15 @@ function Login({ onLoginSuccess }) {
 
           {/* Link de esqueci a senha (opcional) */}
           <div className="text-center pt-4">
-            <a 
-              href="#" 
-              className="text-sm text-[#E6A8D7] hover:text-[#d897c8] transition-colors"
+            <button
+              type="button"
+              onClick={() => {
+                // TODO: Implementar funcionalidade de recuperação de senha
+              }}
+              className="text-sm text-[#E6A8D7] hover:text-[#d897c8] transition-colors bg-transparent border-none cursor-pointer"
             >
               Esqueci minha senha
-            </a>
+            </button>
           </div>
         </div>
 

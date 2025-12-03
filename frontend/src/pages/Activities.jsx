@@ -51,6 +51,14 @@ function Activities({ onOpenActivity }) {
           <div
             key={activity.id}
             onClick={() => onOpenActivity && onOpenActivity(activity.id, activity.type)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                onOpenActivity && onOpenActivity(activity.id, activity.type)
+              }
+            }}
+            role="button"
+            tabIndex={0}
             className="bg-white rounded-lg shadow border border-[#D9D9D9] p-6 cursor-pointer hover:shadow-lg transition-all hover:border-[#E6A8D7] group"
           >
             <div className="flex items-center gap-4 mb-4">

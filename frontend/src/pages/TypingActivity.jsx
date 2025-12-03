@@ -8,7 +8,6 @@ function TypingActivity({ onBack }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [generatedCharacters, setGeneratedCharacters] = useState([])
-  // eslint-disable-next-line no-unused-vars
   const [loopActive, setLoopActive] = useState(false)
   const [bubbles, setBubbles] = useState([])
   const [gameStarted, setGameStarted] = useState(false)
@@ -88,7 +87,6 @@ function TypingActivity({ onBack }) {
         initialTimeRef.current[bubbleId] = Date.now()
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [characters])
 
   // Function to start the game

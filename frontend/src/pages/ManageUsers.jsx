@@ -123,10 +123,11 @@ function ManageUsers() {
           </h2>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-[#333333] mb-2">
+              <label htmlFor="user_name" className="block text-sm font-medium text-[#333333] mb-2">
                 Nome de Usuário
               </label>
               <input
+                id="user_name"
                 type="text"
                 required
                 value={formData.user_name}
@@ -136,10 +137,11 @@ function ManageUsers() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-[#333333] mb-2">
+              <label htmlFor="user_type" className="block text-sm font-medium text-[#333333] mb-2">
                 Tipo de Usuário
               </label>
               <select
+                id="user_type"
                 required
                 value={formData.user_type}
                 onChange={(e) => setFormData({ ...formData, user_type: e.target.value })}
