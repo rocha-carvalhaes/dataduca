@@ -521,7 +521,7 @@ function TypingActivity({ onBack }) {
       {/* Canvas de Bolhas */}
       <div
         ref={containerRef}
-        className="relative bg-gradient-to-b from-blue-50 to-indigo-50 rounded-lg border-2 border-[#D9D9D9] overflow-hidden"
+        className="relative bg-white rounded-lg border-2 border-[#D9D9D9] overflow-hidden"
         style={{ minHeight: '500px', height: '500px' }}
       >
         {/* Progress Bar - Top Left Corner */}
