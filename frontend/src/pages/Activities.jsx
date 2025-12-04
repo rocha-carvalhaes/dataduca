@@ -1,14 +1,36 @@
+import { useState, useEffect } from 'react';
+import api from '../config/api';
+
 function Activities({ onOpenActivity }) {
-  // TODO: Load activities from backend
-  const activities = [
-    {
-      id: 1,
-      title: 'Digitação com Bolhas',
-      description: 'Pratique digitação enquanto estoura bolhas de sabão!',
-      type: 'digitacao',
-      icon: '💭',
-    },
-  ];
+  const [activities, setActivities] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    loadActivities();
+  }, []);
+
+  const loadActivities = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await api.activities.list();
+      // Mapear os dados da API para o formato esperado
+      const mappedActivities = data.map((activity) => ({
+        id: activity.activity_id,
+        title: activity.activity_name,
+        description: activity.activity_description || '',
+        type: activity.activity_type,
+        icon: activity.activity_icon || '💭', // ← Usa activity_icon do banco!
+      }));
+      setActivities(mappedActivities);
+    } catch (err) {
+      setError(err.message || 'Erro ao carregar atividades. Tente novamente.');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="p-6">
@@ -43,56 +65,68 @@ function Activities({ onOpenActivity }) {
         </div>
       </div>
 
-      {/* Activity cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {activities.map((activity) => (
-          <div
-            key={activity.id}
-            onClick={() =>
-              onOpenActivity && onOpenActivity(activity.id, activity.type)
-            }
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                onOpenActivity && onOpenActivity(activity.id, activity.type);
+      {error && (
+        <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+          {error}
+        </div>
+      )}
+
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <div className="text-[#6E6E6E]">Carregando atividades...</div>
+        </div>
+      ) : (
+        /* Activity cards */
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {activities.map((activity) => (
+            <div
+              key={activity.id}
+              onClick={() =>
+                onOpenActivity && onOpenActivity(activity.id, activity.type)
               }
-            }}
-            role="button"
-            tabIndex={0}
-            className="bg-white rounded-lg shadow border border-[#D9D9D9] p-6 cursor-pointer hover:shadow-lg transition-all hover:border-[#E6A8D7] group"
-          >
-            <div className="flex items-center gap-4 mb-4">
-              <div className="text-4xl">{activity.icon}</div>
-              <div className="flex-1">
-                <h3 className="text-xl font-semibold text-[#333333] group-hover:text-[#E6A8D7] transition-colors">
-                  {activity.title}
-                </h3>
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onOpenActivity && onOpenActivity(activity.id, activity.type);
+                }
+              }}
+              role="button"
+              tabIndex={0}
+              className="bg-white rounded-lg shadow border border-[#D9D9D9] p-6 cursor-pointer hover:shadow-lg transition-all hover:border-[#E6A8D7] group"
+            >
+              <div className="flex items-center gap-4 mb-4">
+                <div className="text-4xl">{activity.icon}</div>
+                <div className="flex-1">
+                  <h3 className="text-xl font-semibold text-[#333333] group-hover:text-[#E6A8D7] transition-colors">
+                    {activity.title}
+                  </h3>
+                </div>
+              </div>
+              <p className="text-sm text-[#777777] mb-4">
+                {activity.description}
+              </p>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-[#6E6E6E] bg-[#F5F6F7] px-2 py-1 rounded">
+                  {activity.type}
+                </span>
+                <svg
+                  className="w-5 h-5 text-[#6E6E6E] group-hover:text-[#E6A8D7] transition-colors"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 5l7 7-7 7"
+                  />
+                </svg>
               </div>
             </div>
-            <p className="text-sm text-[#777777] mb-4">
-              {activity.description}
-            </p>
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-[#6E6E6E] bg-[#F5F6F7] px-2 py-1 rounded">
-                {activity.type}
-              </span>
-              <svg
-                className="w-5 h-5 text-[#6E6E6E] group-hover:text-[#E6A8D7] transition-colors"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 5l7 7-7 7"
-                />
-              </svg>
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

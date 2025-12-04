@@ -36,6 +36,8 @@ CREATE TABLE activities (
     activity_name VARCHAR(200) NOT NULL,
     activity_description TEXT,
     activity_objective TEXT,
+    activity_type VARCHAR(50) NOT NULL,
+    activity_icon VARCHAR(10),
     activity_version VARCHAR(50) NOT NULL DEFAULT '1.0',
     updated_at TIMESTAMP DEFAULT NOW()
 );

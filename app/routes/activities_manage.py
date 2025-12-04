@@ -49,13 +49,17 @@ class ActivityCreate(BaseModel):
     activity_name: str
     activity_description: Optional[str] = None
     activity_objective: Optional[str] = None
-    activity_version: str = "1.0"
+    activity_type: str = "indefinido"  # Tipo que mapeia para o componente React
+    activity_icon: Optional[str] = None  # Emoji para ícone da atividade
+    activity_version: str = "0.0"
 
 
 class ActivityUpdate(BaseModel):
     activity_name: Optional[str] = None
     activity_description: Optional[str] = None
     activity_objective: Optional[str] = None
+    activity_type: Optional[str] = None
+    activity_icon: Optional[str] = None
     activity_version: Optional[str] = None
 
 
@@ -64,6 +68,8 @@ class ActivityResponse(BaseModel):
     activity_name: str
     activity_description: Optional[str] = None
     activity_objective: Optional[str] = None
+    activity_type: str
+    activity_icon: Optional[str] = None
     activity_version: str
     updated_at: datetime
 
@@ -81,7 +87,7 @@ async def list_activities(current_user: TokenData = Depends(get_current_user)):
             cur.execute(
                 """
                 SELECT activity_id, activity_name, activity_description,
-                       activity_objective, activity_version, updated_at
+                       activity_objective, activity_type, activity_icon, activity_version, updated_at
                 FROM activities
                 ORDER BY updated_at DESC
             """
@@ -112,7 +118,7 @@ async def get_activity(
             cur.execute(
                 """
                 SELECT activity_id, activity_name, activity_description,
-                       activity_objective, activity_version, updated_at
+                       activity_objective, activity_type, activity_icon, activity_version, updated_at
                 FROM activities
                 WHERE activity_id = %s
             """,
@@ -145,15 +151,21 @@ async def create_activity(
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute(
                 """
-                INSERT INTO activities (activity_name, activity_description, activity_objective, activity_version)
-                VALUES (%s, %s, %s, %s)
+                INSERT INTO activities (
+                    activity_name, activity_description, activity_objective,
+                    activity_type, activity_icon, activity_version
+                )
+                VALUES (%s, %s, %s, %s, %s, %s)
                 RETURNING activity_id, activity_name, activity_description,
-                          activity_objective, activity_version, updated_at
+                          activity_objective, activity_type, activity_icon,
+                          activity_version, updated_at
             """,
                 (
                     activity.activity_name,
                     activity.activity_description,
                     activity.activity_objective,
+                    activity.activity_type,
+                    activity.activity_icon,
                     activity.activity_version,
                 ),
             )
@@ -195,6 +207,14 @@ def _build_activity_updates(activity: ActivityUpdate):
     if activity.activity_objective is not None:
         updates.append("activity_objective = %s")
         values.append(activity.activity_objective)
+
+    if activity.activity_type is not None:
+        updates.append("activity_type = %s")
+        values.append(activity.activity_type)
+
+    if activity.activity_icon is not None:
+        updates.append("activity_icon = %s")
+        values.append(activity.activity_icon)
 
     if activity.activity_version is not None:
         updates.append("activity_version = %s")
@@ -247,7 +267,7 @@ async def update_activity(
                 SET {', '.join(updates)}
                 WHERE activity_id = %s
                 RETURNING activity_id, activity_name, activity_description,
-                          activity_objective, activity_version, updated_at
+                          activity_objective, activity_type, activity_icon, activity_version, updated_at
             """
             cur.execute(query, values)
             updated_activity = cur.fetchone()
