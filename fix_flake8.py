@@ -2,7 +2,6 @@
 """Script para corrigir automaticamente problemas comuns do flake8"""
 
 import os
-import re
 
 
 def fix_file(filepath):

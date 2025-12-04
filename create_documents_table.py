@@ -44,7 +44,7 @@ def create_documents_table():
         # Criar índice
         cur.execute(
             """
-            CREATE INDEX IF NOT EXISTS idx_documents_created_by 
+            CREATE INDEX IF NOT EXISTS idx_documents_created_by
             ON documents(created_by)
         """
         )

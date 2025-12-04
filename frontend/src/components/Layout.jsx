@@ -41,7 +41,12 @@ function Layout({ onLogout }) {
     if (currentActivity) {
       switch (currentActivity.type) {
         case 'digitacao':
-          return <TypingActivity onBack={handleBackToActivities} activityId={currentActivity.id} />
+          return (
+            <TypingActivity
+              onBack={handleBackToActivities}
+              activityId={currentActivity.id}
+            />
+          );
         default:
           return <Activities onOpenActivity={handleOpenActivity} />;
       }

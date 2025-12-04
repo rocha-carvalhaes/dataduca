@@ -109,7 +109,7 @@ export const api = {
       return api.request('/api/user-sessions/');
     },
     async getCurrent() {
-      return api.request('/api/user-sessions/current')
+      return api.request('/api/user-sessions/current');
     },
   },
   activities: {
@@ -148,13 +148,13 @@ export const api = {
       return api.request('/api/activity-sessions/', {
         method: 'POST',
         body: JSON.stringify(data),
-      })
+      });
     },
     async update(sessionId, data) {
       return api.request(`/api/activity-sessions/${sessionId}`, {
         method: 'PUT',
         body: JSON.stringify(data),
-      })
+      });
     },
   },
   documents: {

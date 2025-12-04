@@ -168,7 +168,11 @@ async def update_activity_session(
             else:
                 update_query += ", ended_at = NOW()"
 
-            update_query += " WHERE activity_session_id = %s RETURNING activity_session_id, user_session_id, activity_id, results, initiated_at, ended_at"
+            update_query += (
+                " WHERE activity_session_id = %s "
+                "RETURNING activity_session_id, user_session_id, "
+                "activity_id, results, initiated_at, ended_at"
+            )
             update_values.append(activity_session_id)
 
             cur.execute(update_query, update_values)

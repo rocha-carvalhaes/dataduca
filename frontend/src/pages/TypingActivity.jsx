@@ -2,24 +2,24 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import api from '../config/api';
 
 function TypingActivity({ onBack, activityId }) {
-  const [characters, setCharacters] = useState([])
-  const [totalBubbles, setTotalBubbles] = useState(0)
-  const [speed, setSpeed] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-  const [generatedCharacters, setGeneratedCharacters] = useState([])
-  const [bubbles, setBubbles] = useState([])
-  const [gameStarted, setGameStarted] = useState(false)
-  const [generatedBubbles, setGeneratedBubbles] = useState([]) // Track all bubbles generated in the game
-  const [hitBubbles, setHitBubbles] = useState([]) // Track bubbles that the user hit
-  const [activitySessionId, setActivitySessionId] = useState(null) // ID da sessão de atividade
-  const hitBubblesRef = useRef(new Set()) // Use Set to avoid duplicates
-  const intervalRef = useRef(null)
-  const animationRef = useRef(null)
-  const containerRef = useRef(null)
-  const initialTimeRef = useRef({})
-  const loadedRef = useRef(false)
-  const gameFinishedRef = useRef(false) // Avoid multiple game end events
+  const [characters, setCharacters] = useState([]);
+  const [totalBubbles, setTotalBubbles] = useState(0);
+  const [speed, setSpeed] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [generatedCharacters, setGeneratedCharacters] = useState([]);
+  const [bubbles, setBubbles] = useState([]);
+  const [gameStarted, setGameStarted] = useState(false);
+  const [generatedBubbles, setGeneratedBubbles] = useState([]); // Track all bubbles generated in the game
+  const [hitBubbles, setHitBubbles] = useState([]); // Track bubbles that the user hit
+  const [activitySessionId, setActivitySessionId] = useState(null); // ID da sessão de atividade
+  const hitBubblesRef = useRef(new Set()); // Use Set to avoid duplicates
+  const intervalRef = useRef(null);
+  const animationRef = useRef(null);
+  const containerRef = useRef(null);
+  const initialTimeRef = useRef({});
+  const loadedRef = useRef(false);
+  const gameFinishedRef = useRef(false); // Avoid multiple game end events
 
   // Calculate game status
   const gameStatus = useMemo(() => {
@@ -48,9 +48,9 @@ function TypingActivity({ onBack, activityId }) {
     if (characters.length === 0) {
       return null;
     }
-    const randomIndex = Math.floor(Math.random() * characters.length)
-    return characters[randomIndex]
-  }, [characters])
+    const randomIndex = Math.floor(Math.random() * characters.length);
+    return characters[randomIndex];
+  }, [characters]);
 
   // Function to add a new character to the list and create a bubble
   const addCharacter = useCallback(() => {
@@ -94,33 +94,33 @@ function TypingActivity({ onBack, activityId }) {
         initialTimeRef.current[bubbleId] = Date.now();
       }
     }
-  }, [generateRandomCharacter])
+  }, [generateRandomCharacter]);
 
   // Function to start the game
   const startGame = useCallback(async () => {
-    if (totalBubbles <= 0 || characters.length === 0) return
-    
+    if (totalBubbles <= 0 || characters.length === 0) return;
+
     // Criar sessão de atividade no backend
     try {
       const session = await api.activitySessions.create({
         activity_id: activityId,
-        results: {} // Inicialmente vazio, será preenchido no fim
-      })
-      setActivitySessionId(session.activity_session_id)
+        results: {}, // Inicialmente vazio, será preenchido no fim
+      });
+      setActivitySessionId(session.activity_session_id);
     } catch (err) {
-      console.error('Erro ao criar sessão de atividade:', err)
+      console.error('Erro ao criar sessão de atividade:', err);
       // Continua o jogo mesmo se falhar ao criar a sessão
     }
-    
-    setGameStarted(true)
-    setBubbles([])
-    setGeneratedCharacters([])
-    setGeneratedBubbles([]) // Reset generated bubbles tracking
-    setHitBubbles([]) // Reset hit bubbles tracking
-    hitBubblesRef.current = new Set() // Reset Set of hit IDs
-    gameFinishedRef.current = false // Reset game finished flag
-    initialTimeRef.current = {}
-    
+
+    setGameStarted(true);
+    setBubbles([]);
+    setGeneratedCharacters([]);
+    setGeneratedBubbles([]); // Reset generated bubbles tracking
+    setHitBubbles([]); // Reset hit bubbles tracking
+    hitBubblesRef.current = new Set(); // Reset Set of hit IDs
+    gameFinishedRef.current = false; // Reset game finished flag
+    initialTimeRef.current = {};
+
     // Generate all bubbles spaced in time based on speed
     for (let i = 0; i < totalBubbles; i++) {
       setTimeout(
@@ -130,20 +130,20 @@ function TypingActivity({ onBack, activityId }) {
         i * (speed * 1000)
       ); // Space bubbles based on speed
     }
-  }, [totalBubbles, characters.length, speed, addCharacter, activityId])
+  }, [totalBubbles, characters.length, speed, addCharacter, activityId]);
 
   // Function to restart the game
   const restartGame = useCallback(() => {
-    setGameStarted(false)
-    setBubbles([])
-    setGeneratedCharacters([])
-    setGeneratedBubbles([])
-    setHitBubbles([])
-    setActivitySessionId(null) // Reset session ID
-    hitBubblesRef.current = new Set()
-    gameFinishedRef.current = false
-    initialTimeRef.current = {}
-    
+    setGameStarted(false);
+    setBubbles([]);
+    setGeneratedCharacters([]);
+    setGeneratedBubbles([]);
+    setHitBubbles([]);
+    setActivitySessionId(null); // Reset session ID
+    hitBubblesRef.current = new Set();
+    gameFinishedRef.current = false;
+    initialTimeRef.current = {};
+
     // Clear intervals
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
@@ -184,18 +184,18 @@ function TypingActivity({ onBack, activityId }) {
     if (activitySessionId) {
       try {
         await api.activitySessions.update(activitySessionId, {
-          results: gameData
-        })
+          results: gameData,
+        });
         if (import.meta.env.DEV) {
-          console.log('✅ Sessão de atividade atualizada com sucesso')
+          console.log('✅ Sessão de atividade atualizada com sucesso');
         }
       } catch (err) {
-        console.error('Erro ao atualizar sessão de atividade:', err)
+        console.error('Erro ao atualizar sessão de atividade:', err);
       }
     } else {
-      console.warn('⚠️ Nenhuma sessão de atividade encontrada para atualizar')
+      console.warn('⚠️ Nenhuma sessão de atividade encontrada para atualizar');
     }
-  }, [totalBubbles, generatedBubbles, hitBubbles, activitySessionId])
+  }, [totalBubbles, generatedBubbles, hitBubbles, activitySessionId]);
 
   // Detect when game is finished
   useEffect(() => {
