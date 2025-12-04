@@ -108,6 +108,9 @@ export const api = {
     async list() {
       return api.request('/api/user-sessions/');
     },
+    async getCurrent() {
+      return api.request('/api/user-sessions/current')
+    },
   },
   activities: {
     async getTypingParams() {
@@ -140,6 +143,18 @@ export const api = {
   activitySessions: {
     async list() {
       return api.request('/api/activity-sessions/');
+    },
+    async create(data) {
+      return api.request('/api/activity-sessions/', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      })
+    },
+    async update(sessionId, data) {
+      return api.request(`/api/activity-sessions/${sessionId}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      })
     },
   },
   documents: {
