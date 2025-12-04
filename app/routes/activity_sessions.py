@@ -233,9 +233,8 @@ async def list_activity_sessions(current_user: TokenData = Depends(get_current_u
         raise
     except Exception as e:
         logger.error(f"Erro ao listar sessões de atividades: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=500, detail=f"Erro ao listar sessões de atividades: {str(e)}"
-        )
+        error_msg = f"Erro ao listar sessões de atividades: {str(e)}"
+        raise HTTPException(status_code=500, detail=error_msg)
     finally:
         if conn:
             conn.close()

@@ -8,7 +8,6 @@ function TypingActivity({ onBack, activityId }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [generatedCharacters, setGeneratedCharacters] = useState([])
-  const [loopActive, setLoopActive] = useState(false)
   const [bubbles, setBubbles] = useState([])
   const [gameStarted, setGameStarted] = useState(false)
   const [generatedBubbles, setGeneratedBubbles] = useState([]) // Track all bubbles generated in the game
@@ -45,13 +44,13 @@ function TypingActivity({ onBack, activityId }) {
   }, [generatedBubbles.length, totalBubbles, bubbles.length]);
 
   // Function to generate a random character based on available characters
-  const generateRandomCharacter = () => {
+  const generateRandomCharacter = useCallback(() => {
     if (characters.length === 0) {
       return null;
     }
-    const randomIndex = Math.floor(Math.random() * characters.length);
-    return characters[randomIndex];
-  };
+    const randomIndex = Math.floor(Math.random() * characters.length)
+    return characters[randomIndex]
+  }, [characters])
 
   // Function to add a new character to the list and create a bubble
   const addCharacter = useCallback(() => {
@@ -95,7 +94,7 @@ function TypingActivity({ onBack, activityId }) {
         initialTimeRef.current[bubbleId] = Date.now();
       }
     }
-  }, [characters]);
+  }, [generateRandomCharacter])
 
   // Function to start the game
   const startGame = useCallback(async () => {
