@@ -44,6 +44,7 @@ function Documents() {
       setContent(doc.document_content);
       setDocumentName(doc.document_name);
       setIsNewDocument(false);
+      setIsPreviewMode(true); // Exibir markdown renderizado por padrão ao carregar
     } catch (err) {
       setError(err.message || 'Erro ao carregar documento. Tente novamente.');
       console.error(err);
@@ -64,7 +65,7 @@ function Documents() {
     setSelectedDocument(doc);
     setDocumentName(doc.document_name);
     setIsNewDocument(false);
-    setIsPreviewMode(false);
+    setIsPreviewMode(true); // Exibir markdown renderizado por padrão
     setIsEditingName(false);
   };
 

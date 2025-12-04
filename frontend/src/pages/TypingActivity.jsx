@@ -20,6 +20,8 @@ function TypingActivity({ onBack, activityId }) {
   const initialTimeRef = useRef({});
   const loadedRef = useRef(false);
   const gameFinishedRef = useRef(false); // Avoid multiple game end events
+  const scheduledTimeoutsRef = useRef([]); // Armazena referências dos timeouts agendados
+  const nextBubbleIndexRef = useRef(0); // Índice da próxima bolha a ser gerada
 
   // Calculate game status
   const gameStatus = useMemo(() => {
@@ -120,15 +122,22 @@ function TypingActivity({ onBack, activityId }) {
     hitBubblesRef.current = new Set(); // Reset Set of hit IDs
     gameFinishedRef.current = false; // Reset game finished flag
     initialTimeRef.current = {};
+    nextBubbleIndexRef.current = 0;
+
+    // Limpar timeouts anteriores se houver
+    scheduledTimeoutsRef.current.forEach((timeoutId) =>
+      clearTimeout(timeoutId)
+    );
+    scheduledTimeoutsRef.current = [];
 
     // Generate all bubbles spaced in time based on speed
+    const intervalTime = speed * 1000; // Tempo entre bolhas em ms
     for (let i = 0; i < totalBubbles; i++) {
-      setTimeout(
-        () => {
-          addCharacter();
-        },
-        i * (speed * 1000)
-      ); // Space bubbles based on speed
+      const timeoutId = setTimeout(() => {
+        addCharacter();
+        nextBubbleIndexRef.current = i + 1;
+      }, i * intervalTime);
+      scheduledTimeoutsRef.current.push(timeoutId);
     }
   }, [totalBubbles, characters.length, speed, addCharacter, activityId]);
 
@@ -143,6 +152,13 @@ function TypingActivity({ onBack, activityId }) {
     hitBubblesRef.current = new Set();
     gameFinishedRef.current = false;
     initialTimeRef.current = {};
+    nextBubbleIndexRef.current = 0;
+
+    // Limpar todos os timeouts agendados
+    scheduledTimeoutsRef.current.forEach((timeoutId) =>
+      clearTimeout(timeoutId)
+    );
+    scheduledTimeoutsRef.current = [];
 
     // Clear intervals
     if (intervalRef.current) {
@@ -260,6 +276,30 @@ function TypingActivity({ onBack, activityId }) {
             // Add to Set first
             hitBubblesRef.current.add(removedBubble.id);
 
+            // Calcular tempo de reação (tempo entre geração e acerto)
+            const reactionTime = timestamp - removedBubble.generationTime;
+            const intervalTime = speed * 1000; // Tempo normal entre bolhas
+            const fastThreshold = intervalTime * 0.5; // 50% do tempo normal = acerto rápido
+
+            // Se acertou rápido e ainda há bolhas para gerar, acelerar próxima
+            if (
+              reactionTime < fastThreshold &&
+              nextBubbleIndexRef.current < totalBubbles
+            ) {
+              // Cancelar o timeout da próxima bolha se ainda não foi executado
+              const nextTimeoutIndex = nextBubbleIndexRef.current;
+              if (
+                scheduledTimeoutsRef.current[nextTimeoutIndex] !== undefined
+              ) {
+                clearTimeout(scheduledTimeoutsRef.current[nextTimeoutIndex]);
+                // Gerar próxima bolha imediatamente
+                setTimeout(() => {
+                  addCharacter();
+                  nextBubbleIndexRef.current = nextTimeoutIndex + 1;
+                }, 0);
+              }
+            }
+
             // Then add to state array
             const newHitBubble = {
               id: removedBubble.id,
@@ -306,7 +346,7 @@ function TypingActivity({ onBack, activityId }) {
     return () => {
       window.removeEventListener('keydown', handleKeyPress);
     };
-  }, [loading, error]);
+  }, [loading, error, speed, totalBubbles, addCharacter]);
 
   // Bubble animation
   useEffect(() => {
