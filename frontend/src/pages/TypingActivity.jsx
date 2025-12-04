@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import api from '../config/api'
 
-function TypingActivity({ onBack }) {
+function TypingActivity({ onBack, activityId }) {
   const [characters, setCharacters] = useState([])
   const [totalBubbles, setTotalBubbles] = useState(0)
   const [speed, setSpeed] = useState(null)
@@ -13,6 +13,7 @@ function TypingActivity({ onBack }) {
   const [gameStarted, setGameStarted] = useState(false)
   const [generatedBubbles, setGeneratedBubbles] = useState([]) // Track all bubbles generated in the game
   const [hitBubbles, setHitBubbles] = useState([]) // Track bubbles that the user hit
+  const [activitySessionId, setActivitySessionId] = useState(null) // ID da sessão de atividade
   const hitBubblesRef = useRef(new Set()) // Use Set to avoid duplicates
   const intervalRef = useRef(null)
   const animationRef = useRef(null)
@@ -90,8 +91,20 @@ function TypingActivity({ onBack }) {
   }, [characters])
 
   // Function to start the game
-  const startGame = useCallback(() => {
+  const startGame = useCallback(async () => {
     if (totalBubbles <= 0 || characters.length === 0) return
+    
+    // Criar sessão de atividade no backend
+    try {
+      const session = await api.activitySessions.create({
+        activity_id: activityId,
+        results: {} // Inicialmente vazio, será preenchido no fim
+      })
+      setActivitySessionId(session.activity_session_id)
+    } catch (err) {
+      console.error('Erro ao criar sessão de atividade:', err)
+      // Continua o jogo mesmo se falhar ao criar a sessão
+    }
     
     setGameStarted(true)
     setBubbles([])
@@ -108,7 +121,7 @@ function TypingActivity({ onBack }) {
         addCharacter()
       }, i * (speed * 1000)) // Space bubbles based on speed
     }
-  }, [totalBubbles, characters.length, speed, addCharacter])
+  }, [totalBubbles, characters.length, speed, addCharacter, activityId])
 
   // Function to restart the game
   const restartGame = useCallback(() => {
@@ -117,6 +130,7 @@ function TypingActivity({ onBack }) {
     setGeneratedCharacters([])
     setGeneratedBubbles([])
     setHitBubbles([])
+    setActivitySessionId(null) // Reset session ID
     hitBubblesRef.current = new Set()
     gameFinishedRef.current = false
     initialTimeRef.current = {}
@@ -133,7 +147,7 @@ function TypingActivity({ onBack }) {
   }, [])
 
   // Game end event
-  const handleGameEnd = useCallback(() => {
+  const handleGameEnd = useCallback(async () => {
     // Avoid multiple events
     if (gameFinishedRef.current) return
     gameFinishedRef.current = true
@@ -151,15 +165,27 @@ function TypingActivity({ onBack }) {
       endTimestamp: Date.now()
     }
 
-    // Log for debug (in the future, send to backend)
+    // Log for debug
     if (import.meta.env.DEV) {
       console.log('🎮 Game Finished! Data to save:', gameData)
     }
 
-    // TODO: Here will be the API call to save data in the database
-    // Future example:
-    // await api.activities.saveResult(gameData)
-  }, [totalBubbles, generatedBubbles, hitBubbles])
+    // Atualizar sessão de atividade com os resultados
+    if (activitySessionId) {
+      try {
+        await api.activitySessions.update(activitySessionId, {
+          results: gameData
+        })
+        if (import.meta.env.DEV) {
+          console.log('✅ Sessão de atividade atualizada com sucesso')
+        }
+      } catch (err) {
+        console.error('Erro ao atualizar sessão de atividade:', err)
+      }
+    } else {
+      console.warn('⚠️ Nenhuma sessão de atividade encontrada para atualizar')
+    }
+  }, [totalBubbles, generatedBubbles, hitBubbles, activitySessionId])
 
   // Detect when game is finished
   useEffect(() => {
@@ -499,7 +525,7 @@ function TypingActivity({ onBack }) {
       {/* Canvas de Bolhas */}
       <div
         ref={containerRef}
-        className="relative bg-gradient-to-b from-blue-50 to-indigo-50 rounded-lg border-2 border-[#D9D9D9] overflow-hidden"
+        className="relative bg-white rounded-lg border-2 border-[#D9D9D9] overflow-hidden"
         style={{ minHeight: '500px', height: '500px' }}
       >
           {/* Progress Bar - Top Left Corner */}

@@ -55,6 +55,43 @@ class UserSessionResponse(BaseModel):
         from_attributes = True
 
 
+@router.get("/current", response_model=UserSessionResponse)
+async def get_current_user_session(current_user: TokenData = Depends(get_current_user)):
+    """Obtém a sessão ativa do usuário atual"""
+    conn = None
+    try:
+        conn = get_db_connection()
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("""
+                SELECT 
+                    us.user_session_id,
+                    us.user_id,
+                    u.user_name,
+                    us.initiated_at,
+                    us.ended_at
+                FROM user_sessions us
+                JOIN users u ON us.user_id = u.user_id
+                WHERE us.user_id = %s AND us.ended_at IS NULL
+                ORDER BY us.initiated_at DESC
+                LIMIT 1
+            """, (current_user.user_id,))
+            session = cur.fetchone()
+            if not session:
+                raise HTTPException(
+                    status_code=404,
+                    detail="Nenhuma sessão ativa encontrada"
+                )
+            return dict(session)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Erro ao obter sessão ativa: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Erro ao obter sessão ativa: {str(e)}")
+    finally:
+        if conn:
+            conn.close()
+
+
 @router.get("/", response_model=List[UserSessionResponse])
 async def list_user_sessions(current_user: TokenData = Depends(get_current_user)):
     """Lista todas as sessões de usuários"""
