@@ -174,10 +174,7 @@ function UnscramblePhrases({ onBack, activityId }) {
           const phrasesSoFar = currentResults.phrases || [];
           if (!phrasesSoFar.includes(currentPhrase)) {
             const results = {
-              phrases: [
-                ...phrasesSoFar,
-                currentPhrase,
-              ],
+              phrases: [...phrasesSoFar, currentPhrase],
               movement_history: {
                 ...(currentResults.movement_history || {}),
                 [currentPhraseIndex]: movementHistory,
@@ -465,7 +462,7 @@ function UnscramblePhrases({ onBack, activityId }) {
                 onDragLeave={handleDragLeave}
                 onDrop={(e) => handleDrop(e, index)}
                 onDragEnd={handleDragEnd}
-                className={`px-5 py-3 rounded-lg cursor-move transition-all font-medium text-lg ${
+                className={`px-6 py-4 rounded-lg cursor-move transition-all font-medium text-4xl ${
                   isCorrect
                     ? 'bg-green-500 text-white shadow-lg'
                     : draggedIndex === index
