@@ -103,7 +103,10 @@ function UnscramblePhrases({ onBack, activityId }) {
       // Criar sessão de atividade
       const session = await api.activitySessions.create({
         activity_id: activityId,
-        results: { phrases_used: [], phrases_completed: [] },
+        results: {
+          phrases: [],
+          movement_history: {},
+        },
       });
       setActivitySessionId(session.activity_session_id);
 
@@ -125,7 +128,6 @@ function UnscramblePhrases({ onBack, activityId }) {
         {
           timestamp: new Date().toISOString(),
           word_order: [...shuffledWords],
-          phrase_index: 0,
         },
       ]);
       setGameStarted(true);
@@ -165,15 +167,15 @@ function UnscramblePhrases({ onBack, activityId }) {
         .get(activitySessionId)
         .then((session) => {
           const currentResults = session.results || {
-            phrases_completed: [],
+            phrases: [],
             movement_history: {},
           };
           // Verificar se a frase já foi adicionada
-          if (!currentResults.phrases_completed?.includes(currentPhrase)) {
+          const phrasesSoFar = currentResults.phrases || [];
+          if (!phrasesSoFar.includes(currentPhrase)) {
             const results = {
-              phrases_used: selectedPhrases.slice(0, currentPhraseIndex + 1),
-              phrases_completed: [
-                ...(currentResults.phrases_completed || []),
+              phrases: [
+                ...phrasesSoFar,
                 currentPhrase,
               ],
               movement_history: {
@@ -237,7 +239,6 @@ function UnscramblePhrases({ onBack, activityId }) {
         {
           timestamp: new Date().toISOString(),
           word_order: [...shuffledWords],
-          phrase_index: nextIndex,
         },
       ]);
     } else {
@@ -287,10 +288,6 @@ function UnscramblePhrases({ onBack, activityId }) {
       {
         timestamp: new Date().toISOString(),
         word_order: [...newWords],
-        phrase_index: currentPhraseIndex,
-        moved_word: draggedWord,
-        from_index: draggedIndex,
-        to_index: targetIndex,
       },
     ]);
 
