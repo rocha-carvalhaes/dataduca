@@ -16,6 +16,7 @@ function UnscramblePhrases({ onBack, activityId }) {
   const [dragOverIndex, setDragOverIndex] = useState(null);
   const [isCorrect, setIsCorrect] = useState(false);
   const [gameCompleted, setGameCompleted] = useState(false);
+  const [movementHistory, setMovementHistory] = useState([]); // Histórico de movimentos da frase atual
   const loadedRef = useRef(false);
 
   // Carregar parâmetros da API
@@ -113,11 +114,20 @@ function UnscramblePhrases({ onBack, activityId }) {
       // Preparar primeira frase
       const firstPhrase = selected[0];
       const words = firstPhrase.split(' ');
+      const shuffledWords = shuffleArray(words);
       setCorrectOrder(words);
-      setCurrentPhraseWords(shuffleArray(words));
+      setCurrentPhraseWords(shuffledWords);
       setCurrentPhraseIndex(0);
       setIsCorrect(false);
       hasUpdatedSessionRef.current = false;
+      // Iniciar histórico com estado inicial
+      setMovementHistory([
+        {
+          timestamp: new Date().toISOString(),
+          word_order: [...shuffledWords],
+          phrase_index: 0,
+        },
+      ]);
       setGameStarted(true);
     } catch (err) {
       console.error('Erro ao iniciar jogo:', err);
@@ -154,7 +164,10 @@ function UnscramblePhrases({ onBack, activityId }) {
       api.activitySessions
         .get(activitySessionId)
         .then((session) => {
-          const currentResults = session.results || { phrases_completed: [] };
+          const currentResults = session.results || {
+            phrases_completed: [],
+            movement_history: {},
+          };
           // Verificar se a frase já foi adicionada
           if (!currentResults.phrases_completed?.includes(currentPhrase)) {
             const results = {
@@ -163,6 +176,10 @@ function UnscramblePhrases({ onBack, activityId }) {
                 ...(currentResults.phrases_completed || []),
                 currentPhrase,
               ],
+              movement_history: {
+                ...(currentResults.movement_history || {}),
+                [currentPhraseIndex]: movementHistory,
+              },
             };
             return api.activitySessions.update(activitySessionId, { results });
           }
@@ -209,11 +226,20 @@ function UnscramblePhrases({ onBack, activityId }) {
       const nextIndex = currentPhraseIndex + 1;
       const nextPhrase = selectedPhrases[nextIndex];
       const words = nextPhrase.split(' ');
+      const shuffledWords = shuffleArray(words);
       setCorrectOrder(words);
-      setCurrentPhraseWords(shuffleArray(words));
+      setCurrentPhraseWords(shuffledWords);
       setCurrentPhraseIndex(nextIndex);
       setIsCorrect(false);
       hasUpdatedSessionRef.current = false;
+      // Iniciar histórico para a próxima frase
+      setMovementHistory([
+        {
+          timestamp: new Date().toISOString(),
+          word_order: [...shuffledWords],
+          phrase_index: nextIndex,
+        },
+      ]);
     } else {
       // Última frase completada
       handleGameEnd();
@@ -254,6 +280,20 @@ function UnscramblePhrases({ onBack, activityId }) {
     newWords.splice(targetIndex, 0, draggedWord);
 
     setCurrentPhraseWords(newWords);
+
+    // Registrar movimento no histórico
+    setMovementHistory((prev) => [
+      ...prev,
+      {
+        timestamp: new Date().toISOString(),
+        word_order: [...newWords],
+        phrase_index: currentPhraseIndex,
+        moved_word: draggedWord,
+        from_index: draggedIndex,
+        to_index: targetIndex,
+      },
+    ]);
+
     setDraggedIndex(null);
     setDragOverIndex(null);
   };
