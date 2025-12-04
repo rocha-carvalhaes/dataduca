@@ -387,7 +387,7 @@ function TypingActivity({ onBack, activityId }) {
 
     const loadParams = async () => {
       try {
-        const params = await api.activities.getTypingParams();
+        const params = await api.activities.getTypingParams(activityId);
 
         // Validate data received from API
         if (
@@ -434,7 +434,7 @@ function TypingActivity({ onBack, activityId }) {
     };
 
     loadParams();
-  }, []);
+  }, [activityId]);
 
   if (loading) {
     return (

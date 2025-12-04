@@ -102,9 +102,11 @@ function Layout({ onLogout }) {
                       {currentUser.user_name}
                     </p>
                     <p className="text-xs text-[#6E6E6E]">
-                      {currentUser.user_type === 'professor'
-                        ? 'Professor'
-                        : 'Aluno'}
+                      {currentUser.user_type === 'administrador'
+                        ? 'Administrador'
+                        : currentUser.user_type === 'professor'
+                          ? 'Professor'
+                          : 'Aluno'}
                     </p>
                   </div>
                 </div>

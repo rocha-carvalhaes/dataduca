@@ -113,8 +113,11 @@ export const api = {
     },
   },
   activities: {
-    async getTypingParams() {
-      return api.request('/api/activities/typing/params');
+    async getTypingParams(activityId = null) {
+      const url = activityId
+        ? `/api/activities/typing/params?activity_id=${activityId}`
+        : '/api/activities/typing/params';
+      return api.request(url);
     },
     async list() {
       return api.request('/api/activities/list');
@@ -180,6 +183,27 @@ export const api = {
       return api.request(`/api/documents/${documentId}`, {
         method: 'DELETE',
       });
+    },
+  },
+  userActivityParams: {
+    async list(activityId = null, userId = null, activeOnly = true) {
+      const params = new URLSearchParams();
+      if (activityId) params.append('activity_id', activityId);
+      if (userId) params.append('user_id', userId);
+      params.append('active_only', activeOnly);
+      return api.request(`/api/user-activity-params/?${params.toString()}`);
+    },
+    async getCurrent(activityId) {
+      return api.request(`/api/user-activity-params/current/${activityId}`);
+    },
+    async create(data) {
+      return api.request('/api/user-activity-params/', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+    },
+    async get(id) {
+      return api.request(`/api/user-activity-params/${id}`);
     },
   },
 };

@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from typing import List, Optional
 import psycopg2
@@ -53,7 +54,7 @@ def get_db_connection():
 # Modelos Pydantic
 class UserCreate(BaseModel):
     user_name: str
-    user_type: str  # 'aluno' ou 'professor'
+    user_type: str  # Qualquer tipo de usuário (aluno, professor, administrador, etc.)
     password: str
 
 
@@ -71,6 +72,39 @@ class UserResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# Função helper para verificar se há usuários no sistema
+def has_users() -> bool:
+    """Verifica se existem usuários no sistema"""
+    conn = None
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cur:
+            cur.execute("SELECT COUNT(*) as count FROM users")
+            result = cur.fetchone()
+            return result[0] > 0 if result else False
+    except Exception:
+        return False
+    finally:
+        if conn:
+            conn.close()
+
+
+# Dependência opcional para autenticação
+security = HTTPBearer(auto_error=False)
+
+
+async def get_current_user_optional(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+) -> Optional[TokenData]:
+    """Obtém o usuário atual se autenticado, caso contrário retorna None"""
+    if credentials is None:
+        return None
+    try:
+        return await get_current_user(credentials)
+    except Exception:
+        return None
 
 
 @router.get("/", response_model=List[UserResponse])
@@ -132,25 +166,45 @@ async def get_user(user_id: int):
 
 @router.post("/", response_model=UserResponse, status_code=201)
 async def create_user(
-    user: UserCreate, current_user: TokenData = Depends(get_current_user)
+    user: UserCreate,
+    current_user: Optional[TokenData] = Depends(get_current_user_optional),
 ):
-    """Cria um novo usuário"""
-    # Validação do tipo de usuário
-    if user.user_type not in ["aluno", "professor"]:
-        raise HTTPException(
-            status_code=400, detail="user_type deve ser 'aluno' ou 'professor'"
-        )
-
-    # Hash da senha
-    salt = bcrypt.gensalt()
-    hash_password = bcrypt.hashpw(user.password.encode("utf-8"), salt)
-    # Converte bytes para string para armazenar no banco
-    hash_password_str = hash_password.decode("utf-8")
-
+    """
+    Cria um novo usuário.
+    Se não houver usuários no sistema, permite criar sem autenticação.
+    Caso contrário, requer autenticação.
+    """
     conn = None
     try:
+        # Verificar se há usuários no sistema
+        system_has_users = has_users()
+
+        # Se já existem usuários, requer autenticação
+        if system_has_users and current_user is None:
+            raise HTTPException(
+                status_code=401,
+                detail="Autenticação necessária para criar usuários quando já existem usuários no sistema",
+            )
+
         conn = get_db_connection()
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            # Verificar se o usuário já existe antes de tentar inserir
+            cur.execute(
+                "SELECT user_id FROM users WHERE user_name = %s",
+                (user.user_name,),
+            )
+            existing_user = cur.fetchone()
+            if existing_user:
+                raise HTTPException(
+                    status_code=400, detail="Nome de usuário já existe"
+                )
+
+            # Hash da senha
+            salt = bcrypt.gensalt()
+            hash_password = bcrypt.hashpw(user.password.encode("utf-8"), salt)
+            # Converte bytes para string para armazenar no banco
+            hash_password_str = hash_password.decode("utf-8")
+
             cur.execute(
                 """
                 INSERT INTO users (user_name, user_type, hash_password)
@@ -165,8 +219,20 @@ async def create_user(
     except psycopg2.IntegrityError as e:
         if conn:
             conn.rollback()
-        logger.error(f"Erro de integridade ao criar usuário: {str(e)}")
-        raise HTTPException(status_code=400, detail="Nome de usuário já existe")
+        error_message = str(e)
+        logger.error(f"Erro de integridade ao criar usuário: {error_message}")
+        
+        # Verificar se é erro de constraint UNIQUE (nome duplicado)
+        if "unique" in error_message.lower() or "duplicate" in error_message.lower():
+            raise HTTPException(
+                status_code=400, detail="Nome de usuário já existe"
+            )
+        else:
+            # Outro tipo de erro de integridade
+            raise HTTPException(
+                status_code=400,
+                detail=f"Erro de integridade: {error_message}",
+            )
     except HTTPException:
         raise
     except Exception as e:
@@ -180,11 +246,9 @@ async def create_user(
 
 
 def _validate_user_type(user_type: Optional[str]):
-    """Valida o tipo de usuário"""
-    if user_type and user_type not in ["aluno", "professor"]:
-        raise HTTPException(
-            status_code=400, detail="user_type deve ser 'aluno' ou 'professor'"
-        )
+    """Valida o tipo de usuário (removida restrição para permitir categorias customizadas)"""
+    # Validação removida para permitir qualquer tipo de usuário
+    pass
 
 
 def _hash_password(password: str) -> str:

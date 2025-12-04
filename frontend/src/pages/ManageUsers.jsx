@@ -169,6 +169,7 @@ function ManageUsers() {
               >
                 <option value="aluno">Aluno</option>
                 <option value="professor">Professor</option>
+                <option value="administrador">Administrador</option>
               </select>
             </div>
             <div>
@@ -252,12 +253,17 @@ function ManageUsers() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-[#333333]">
                       <span
                         className={`px-2 py-1 rounded text-xs font-medium ${
-                          user.user_type === 'professor'
+                          user.user_type === 'professor' ||
+                          user.user_type === 'administrador'
                             ? 'bg-[#E6A8D7] text-white'
                             : 'bg-[#B8E3C0] text-[#333333]'
                         }`}
                       >
-                        {user.user_type === 'professor' ? 'Professor' : 'Aluno'}
+                        {user.user_type === 'administrador'
+                          ? 'Administrador'
+                          : user.user_type === 'professor'
+                            ? 'Professor'
+                            : 'Aluno'}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-[#6E6E6E]">
