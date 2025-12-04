@@ -195,6 +195,7 @@ function UnscramblePhrases({ onBack, activityId }) {
     activitySessionId,
     selectedPhrases,
     currentPhraseIndex,
+    movementHistory,
   ]);
 
   // Finalizar jogo

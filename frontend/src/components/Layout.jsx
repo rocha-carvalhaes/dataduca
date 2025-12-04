@@ -56,7 +56,6 @@ function Layout({ onLogout }) {
         case 'desembaralhar-frases':
         case 'desembaralhar frases':
         case 'desembaralhar_frases':
-        case 'desembaralhar frases':
         case 'unscramble-phrases':
         case 'unscramble phrases':
           return (
@@ -102,8 +101,8 @@ function Layout({ onLogout }) {
                 </div>
                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
                   <p className="text-sm text-yellow-800">
-                    <strong>Tipo:</strong> "{activityType || 'não especificado'}
-                    "
+                    <strong>Tipo:</strong> &quot;{activityType || 'não especificado'}
+                    &quot;
                   </p>
                   <p className="text-sm text-yellow-800 mt-1">
                     <strong>ID:</strong> {currentActivity.id}
