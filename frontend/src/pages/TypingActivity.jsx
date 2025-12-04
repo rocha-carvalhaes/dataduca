@@ -178,6 +178,18 @@ function TypingActivity({ onBack, activityId }) {
     gameFinishedRef.current = true;
 
     // Prepare game data for backend submission
+    // Converter timestamps para ISO string
+    const generatedBubblesDetails = generatedBubbles.map((bubble) => ({
+      ...bubble,
+      generationTime: new Date(bubble.generationTime).toISOString(),
+    }));
+
+    const hitBubblesDetails = hitBubbles.map((bubble) => ({
+      ...bubble,
+      generationTime: new Date(bubble.generationTime).toISOString(),
+      hitTime: new Date(bubble.hitTime).toISOString(),
+    }));
+
     const gameData = {
       totalBubbles: totalBubbles,
       generatedBubbles: generatedBubbles.length,
@@ -186,9 +198,9 @@ function TypingActivity({ onBack, activityId }) {
         generatedBubbles.length > 0
           ? (hitBubbles.length / generatedBubbles.length) * 100
           : 0,
-      generatedBubblesDetails: generatedBubbles, // Complete list of all generated bubbles
-      hitBubblesDetails: hitBubbles, // Complete list of hit bubbles
-      endTimestamp: Date.now(),
+      generatedBubblesDetails: generatedBubblesDetails, // Complete list of all generated bubbles
+      hitBubblesDetails: hitBubblesDetails, // Complete list of hit bubbles
+      endTimestamp: new Date().toISOString(),
     };
 
     // Log for debug

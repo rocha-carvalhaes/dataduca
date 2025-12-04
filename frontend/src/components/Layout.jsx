@@ -46,18 +46,13 @@ function Layout({ onLogout }) {
 
       switch (activityType) {
         case 'digitacao':
-        case 'typing':
           return (
             <TypingActivity
               onBack={handleBackToActivities}
               activityId={currentActivity.id}
             />
           );
-        case 'desembaralhar-frases':
-        case 'desembaralhar frases':
         case 'desembaralhar_frases':
-        case 'unscramble-phrases':
-        case 'unscramble phrases':
           return (
             <UnscramblePhrases
               onBack={handleBackToActivities}
