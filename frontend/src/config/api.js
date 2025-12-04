@@ -119,6 +119,12 @@ export const api = {
         : '/api/activities/typing/params';
       return api.request(url);
     },
+    async getUnscramblePhrasesParams(activityId = null) {
+      const url = activityId
+        ? `/api/activities/unscramble-phrases/params?activity_id=${activityId}`
+        : '/api/activities/unscramble-phrases/params';
+      return api.request(url);
+    },
     async list() {
       return api.request('/api/activities/list');
     },
@@ -152,6 +158,9 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(data),
       });
+    },
+    async get(sessionId) {
+      return api.request(`/api/activity-sessions/${sessionId}`);
     },
     async update(sessionId, data) {
       return api.request(`/api/activity-sessions/${sessionId}`, {

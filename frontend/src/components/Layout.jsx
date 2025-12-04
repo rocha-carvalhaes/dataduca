@@ -3,6 +3,7 @@ import Sidebar from './Sidebar';
 import Home from '../pages/Home';
 import Activities from '../pages/Activities';
 import TypingActivity from '../pages/TypingActivity';
+import UnscramblePhrases from '../pages/UnscramblePhrases';
 import Manage from '../pages/Manage';
 import Documents from '../pages/Documents';
 import { authStorage } from '../utils/auth';
@@ -29,6 +30,7 @@ function Layout({ onLogout }) {
   };
 
   const handleOpenActivity = (activityId, type) => {
+    console.log('Abrindo atividade:', { activityId, type });
     setCurrentActivity({ id: activityId, type });
   };
 
@@ -39,16 +41,85 @@ function Layout({ onLogout }) {
 
   const renderPage = () => {
     if (currentActivity) {
-      switch (currentActivity.type) {
+      console.log('Renderizando atividade:', currentActivity);
+      const activityType = currentActivity.type?.toLowerCase()?.trim();
+
+      switch (activityType) {
         case 'digitacao':
+        case 'typing':
           return (
             <TypingActivity
               onBack={handleBackToActivities}
               activityId={currentActivity.id}
             />
           );
+        case 'desembaralhar-frases':
+        case 'desembaralhar frases':
+        case 'desembaralhar_frases':
+        case 'desembaralhar frases':
+        case 'unscramble-phrases':
+        case 'unscramble phrases':
+          return (
+            <UnscramblePhrases
+              onBack={handleBackToActivities}
+              activityId={currentActivity.id}
+            />
+          );
         default:
-          return <Activities onOpenActivity={handleOpenActivity} />;
+          console.warn('Tipo de atividade não reconhecido:', activityType);
+          return (
+            <div className="p-6">
+              <div className="mb-6 flex items-center justify-between">
+                <button
+                  onClick={handleBackToActivities}
+                  className="flex items-center gap-2 text-[#6E6E6E] hover:text-[#333333] transition-colors"
+                >
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M15 19l-7-7 7-7"
+                    />
+                  </svg>
+                  Voltar
+                </button>
+              </div>
+              <div className="max-w-2xl mx-auto bg-white rounded-lg shadow border border-[#D9D9D9] p-8">
+                <div className="text-center mb-6">
+                  <div className="text-6xl mb-4">🚧</div>
+                  <h2 className="text-2xl font-bold text-[#333333] mb-2">
+                    Atividade em Desenvolvimento
+                  </h2>
+                  <p className="text-[#777777]">
+                    Esta atividade ainda não está disponível
+                  </p>
+                </div>
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+                  <p className="text-sm text-yellow-800">
+                    <strong>Tipo:</strong> "{activityType || 'não especificado'}
+                    "
+                  </p>
+                  <p className="text-sm text-yellow-800 mt-1">
+                    <strong>ID:</strong> {currentActivity.id}
+                  </p>
+                </div>
+                <div className="text-center">
+                  <button
+                    onClick={handleBackToActivities}
+                    className="px-6 py-2 bg-[#E6A8D7] text-white rounded-lg hover:bg-[#D997C7] transition-colors font-medium"
+                  >
+                    Voltar para Atividades
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
       }
     }
 

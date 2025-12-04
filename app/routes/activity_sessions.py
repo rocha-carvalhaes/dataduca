@@ -233,6 +233,54 @@ async def update_activity_session(
             conn.close()
 
 
+@router.get("/{activity_session_id}", response_model=ActivitySessionResponse)
+async def get_activity_session(
+    activity_session_id: int,
+    current_user: TokenData = Depends(get_current_user),
+):
+    """
+    Retorna uma sessão de atividade específica.
+    """
+    conn = None
+    try:
+        conn = get_db_connection()
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(
+                """
+                SELECT
+                    asess.activity_session_id,
+                    asess.user_session_id,
+                    asess.activity_id,
+                    u.user_name,
+                    a.activity_name,
+                    asess.results,
+                    asess.initiated_at,
+                    asess.ended_at
+                FROM activity_sessions asess
+                JOIN user_sessions us ON asess.user_session_id = us.user_session_id
+                JOIN users u ON us.user_id = u.user_id
+                JOIN activities a ON asess.activity_id = a.activity_id
+                WHERE asess.activity_session_id = %s
+            """,
+                (activity_session_id,),
+            )
+            session = cur.fetchone()
+            if not session:
+                raise HTTPException(
+                    status_code=404, detail="Sessão de atividade não encontrada"
+                )
+            return dict(session)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Erro ao buscar sessão de atividade: {str(e)}", exc_info=True)
+        error_msg = f"Erro ao buscar sessão de atividade: {str(e)}"
+        raise HTTPException(status_code=500, detail=error_msg)
+    finally:
+        if conn:
+            conn.close()
+
+
 @router.get("/", response_model=List[ActivitySessionResponse])
 async def list_activity_sessions(current_user: TokenData = Depends(get_current_user)):
     """Lista todas as sessões de atividades"""

@@ -81,9 +81,17 @@ function Activities({ onOpenActivity }) {
           {activities.map((activity) => (
             <div
               key={activity.id}
-              onClick={() =>
-                onOpenActivity && onOpenActivity(activity.id, activity.type)
-              }
+              onClick={() => {
+                console.log('Card clicado:', {
+                  id: activity.id,
+                  type: activity.type,
+                });
+                if (onOpenActivity) {
+                  onOpenActivity(activity.id, activity.type);
+                } else {
+                  console.error('onOpenActivity não está definido!');
+                }
+              }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault();

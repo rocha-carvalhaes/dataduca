@@ -21,6 +21,11 @@ class TypingActivityParams(BaseModel):
     speed: float  # pixels per frame
 
 
+class UnscramblePhrasesParams(BaseModel):
+    phrases: List[str]  # Lista de frases disponíveis
+    phrases_per_session: int  # Quantidade de frases por sessão
+
+
 @router.get("/typing/params", response_model=TypingActivityParams)
 async def get_typing_params(
     activity_id: Optional[int] = None,
@@ -70,6 +75,73 @@ async def get_typing_params(
                         "total_bubbles", default_params.total_bubbles
                     ),
                     speed=params.get("speed", default_params.speed),
+                )
+    except Exception as e:
+        logger.warning(
+            f"Erro ao buscar parâmetros personalizados: {str(e)}. "
+            "Retornando parâmetros padrão."
+        )
+    finally:
+        if conn:
+            conn.close()
+
+    # Retornar parâmetros padrão se não encontrar personalizados
+    return default_params
+
+
+@router.get("/unscramble-phrases/params", response_model=UnscramblePhrasesParams)
+async def get_unscramble_phrases_params(
+    activity_id: Optional[int] = None,
+    current_user: Optional[TokenData] = Depends(get_current_user),
+):
+    """
+    Retorna parâmetros para a atividade de desembaralhar frases.
+    Se o usuário tiver parâmetros personalizados para a atividade,
+    retorna esses parâmetros. Caso contrário, retorna parâmetros padrão.
+    """
+    # Parâmetros padrão
+    default_params = UnscramblePhrasesParams(
+        phrases=[
+            "O gato está na casa",
+            "A menina brinca no parque",
+            "O sol brilha no céu",
+            "A árvore cresce no jardim",
+            "O livro está na mesa",
+        ],
+        phrases_per_session=5,
+    )
+
+    # Se não houver activity_id, retorna padrão
+    if not activity_id:
+        return default_params
+
+    # Tentar buscar parâmetros personalizados do usuário
+    conn = None
+    try:
+        conn = get_db_connection()
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(
+                """
+                SELECT params
+                FROM user_activity_params
+                WHERE user_id = %s
+                    AND activity_id = %s
+                    AND active = TRUE
+                ORDER BY initiated_at DESC
+                LIMIT 1
+            """,
+                (current_user.user_id, activity_id),
+            )
+            result = cur.fetchone()
+
+            if result and result["params"]:
+                params = result["params"]
+                # Validar e retornar parâmetros personalizados
+                return UnscramblePhrasesParams(
+                    phrases=params.get("phrases", default_params.phrases),
+                    phrases_per_session=params.get(
+                        "phrases_per_session", default_params.phrases_per_session
+                    ),
                 )
     except Exception as e:
         logger.warning(
