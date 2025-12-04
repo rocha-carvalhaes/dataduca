@@ -31,16 +31,17 @@ def get_db_connection():
                 port=os.getenv("DB_PORT", "5432"),
                 database=os.getenv("DB_NAME", "dataduca"),
                 user=os.getenv("DB_USER", "postgres"),
-                password=os.getenv("DB_PASSWORD", "postgres")
+                password=os.getenv("DB_PASSWORD", "postgres"),
             )
         return conn
     except psycopg2.OperationalError as e:
         raise HTTPException(
-            status_code=500,
-            detail=f"Erro ao conectar ao banco de dados: {str(e)}"
+            status_code=500, detail=f"Erro ao conectar ao banco de dados: {str(e)}"
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro ao conectar ao banco: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Erro ao conectar ao banco: {str(e)}"
+        )
 
 
 # Modelos Pydantic
@@ -77,37 +78,46 @@ async def list_activities(current_user: TokenData = Depends(get_current_user)):
     try:
         conn = get_db_connection()
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute("""
-                SELECT activity_id, activity_name, activity_description, 
+            cur.execute(
+                """
+                SELECT activity_id, activity_name, activity_description,
                        activity_objective, activity_version, updated_at
                 FROM activities
                 ORDER BY updated_at DESC
-            """)
+            """
+            )
             activities = cur.fetchall()
             return [dict(activity) for activity in activities]
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Erro ao listar atividades: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Erro ao listar atividades: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Erro ao listar atividades: {str(e)}"
+        )
     finally:
         if conn:
             conn.close()
 
 
 @router.get("/{activity_id}", response_model=ActivityResponse)
-async def get_activity(activity_id: int, current_user: TokenData = Depends(get_current_user)):
+async def get_activity(
+    activity_id: int, current_user: TokenData = Depends(get_current_user)
+):
     """Obtém uma atividade específica por ID"""
     conn = None
     try:
         conn = get_db_connection()
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute("""
-                SELECT activity_id, activity_name, activity_description, 
+            cur.execute(
+                """
+                SELECT activity_id, activity_name, activity_description,
                        activity_objective, activity_version, updated_at
                 FROM activities
                 WHERE activity_id = %s
-            """, (activity_id,))
+            """,
+                (activity_id,),
+            )
             activity = cur.fetchone()
             if not activity:
                 raise HTTPException(status_code=404, detail="Atividade não encontrada")
@@ -116,26 +126,37 @@ async def get_activity(activity_id: int, current_user: TokenData = Depends(get_c
         raise
     except Exception as e:
         logger.error(f"Erro ao obter atividade {activity_id}: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Erro ao obter atividade: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Erro ao obter atividade: {str(e)}"
+        )
     finally:
         if conn:
             conn.close()
 
 
 @router.post("/", response_model=ActivityResponse, status_code=201)
-async def create_activity(activity: ActivityCreate, current_user: TokenData = Depends(get_current_user)):
+async def create_activity(
+    activity: ActivityCreate, current_user: TokenData = Depends(get_current_user)
+):
     """Cria uma nova atividade"""
     conn = None
     try:
         conn = get_db_connection()
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute("""
+            cur.execute(
+                """
                 INSERT INTO activities (activity_name, activity_description, activity_objective, activity_version)
                 VALUES (%s, %s, %s, %s)
-                RETURNING activity_id, activity_name, activity_description, 
+                RETURNING activity_id, activity_name, activity_description,
                           activity_objective, activity_version, updated_at
-            """, (activity.activity_name, activity.activity_description, 
-                  activity.activity_objective, activity.activity_version))
+            """,
+                (
+                    activity.activity_name,
+                    activity.activity_description,
+                    activity.activity_objective,
+                    activity.activity_version,
+                ),
+            )
             new_activity = cur.fetchone()
             conn.commit()
             return dict(new_activity)
@@ -150,63 +171,82 @@ async def create_activity(activity: ActivityCreate, current_user: TokenData = De
         if conn:
             conn.rollback()
         logger.error(f"Erro ao criar atividade: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Erro ao criar atividade: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Erro ao criar atividade: {str(e)}"
+        )
     finally:
         if conn:
             conn.close()
 
 
+def _build_activity_updates(activity: ActivityUpdate):
+    """Constrói a lista de updates e values para atualização de atividade"""
+    updates = []
+    values = []
+
+    if activity.activity_name is not None:
+        updates.append("activity_name = %s")
+        values.append(activity.activity_name)
+
+    if activity.activity_description is not None:
+        updates.append("activity_description = %s")
+        values.append(activity.activity_description)
+
+    if activity.activity_objective is not None:
+        updates.append("activity_objective = %s")
+        values.append(activity.activity_objective)
+
+    if activity.activity_version is not None:
+        updates.append("activity_version = %s")
+        values.append(activity.activity_version)
+
+    return updates, values
+
+
 @router.put("/{activity_id}", response_model=ActivityResponse)
-async def update_activity(activity_id: int, activity: ActivityUpdate, current_user: TokenData = Depends(get_current_user)):
+async def update_activity(
+    activity_id: int,
+    activity: ActivityUpdate,
+    current_user: TokenData = Depends(get_current_user),
+):
     """Atualiza uma atividade existente"""
     conn = None
     try:
         conn = get_db_connection()
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             # Verifica se a atividade existe
-            cur.execute("SELECT activity_id FROM activities WHERE activity_id = %s", (activity_id,))
+            cur.execute(
+                "SELECT activity_id FROM activities WHERE activity_id = %s",
+                (activity_id,),
+            )
             if not cur.fetchone():
                 raise HTTPException(status_code=404, detail="Atividade não encontrada")
-            
+
             # Monta a query dinamicamente
-            updates = []
-            values = []
-            
-            if activity.activity_name is not None:
-                updates.append("activity_name = %s")
-                values.append(activity.activity_name)
-            
-            if activity.activity_description is not None:
-                updates.append("activity_description = %s")
-                values.append(activity.activity_description)
-            
-            if activity.activity_objective is not None:
-                updates.append("activity_objective = %s")
-                values.append(activity.activity_objective)
-            
-            if activity.activity_version is not None:
-                updates.append("activity_version = %s")
-                values.append(activity.activity_version)
-            
+            updates, values = _build_activity_updates(activity)
+
             if not updates:
                 # Se não há atualizações, retorna a atividade atual
-                cur.execute("""
-                    SELECT activity_id, activity_name, activity_description, 
+                cur.execute(
+                    """
+                    SELECT activity_id, activity_name, activity_description,
                            activity_objective, activity_version, updated_at
                     FROM activities
                     WHERE activity_id = %s
-                """, (activity_id,))
+                """,
+                    (activity_id,),
+                )
                 return dict(cur.fetchone())
-            
+
             # Sempre atualiza o updated_at
             updates.append("updated_at = NOW()")
             values.append(activity_id)
-            
+
             query = f"""
                 UPDATE activities
                 SET {', '.join(updates)}
                 WHERE activity_id = %s
-                RETURNING activity_id, activity_name, activity_description, 
+                RETURNING activity_id, activity_name, activity_description,
                           activity_objective, activity_version, updated_at
             """
             cur.execute(query, values)
@@ -218,25 +258,34 @@ async def update_activity(activity_id: int, activity: ActivityUpdate, current_us
     except Exception as e:
         if conn:
             conn.rollback()
-        logger.error(f"Erro ao atualizar atividade {activity_id}: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Erro ao atualizar atividade: {str(e)}")
+        logger.error(
+            f"Erro ao atualizar atividade {activity_id}: {str(e)}", exc_info=True
+        )
+        raise HTTPException(
+            status_code=500, detail=f"Erro ao atualizar atividade: {str(e)}"
+        )
     finally:
         if conn:
             conn.close()
 
 
 @router.delete("/{activity_id}", status_code=204)
-async def delete_activity(activity_id: int, current_user: TokenData = Depends(get_current_user)):
+async def delete_activity(
+    activity_id: int, current_user: TokenData = Depends(get_current_user)
+):
     """Deleta uma atividade"""
     conn = None
     try:
         conn = get_db_connection()
         with conn.cursor() as cur:
             # Verifica se a atividade existe
-            cur.execute("SELECT activity_id FROM activities WHERE activity_id = %s", (activity_id,))
+            cur.execute(
+                "SELECT activity_id FROM activities WHERE activity_id = %s",
+                (activity_id,),
+            )
             if not cur.fetchone():
                 raise HTTPException(status_code=404, detail="Atividade não encontrada")
-            
+
             cur.execute("DELETE FROM activities WHERE activity_id = %s", (activity_id,))
             conn.commit()
             return None
@@ -245,9 +294,12 @@ async def delete_activity(activity_id: int, current_user: TokenData = Depends(ge
     except Exception as e:
         if conn:
             conn.rollback()
-        logger.error(f"Erro ao deletar atividade {activity_id}: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Erro ao deletar atividade: {str(e)}")
+        logger.error(
+            f"Erro ao deletar atividade {activity_id}: {str(e)}", exc_info=True
+        )
+        raise HTTPException(
+            status_code=500, detail=f"Erro ao deletar atividade: {str(e)}"
+        )
     finally:
         if conn:
             conn.close()
-

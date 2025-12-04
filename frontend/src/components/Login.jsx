@@ -1,52 +1,53 @@
-import { useState } from 'react'
-import dataducaLogo from '../assets/dataduca_logo_01.png'
-import api from '../config/api'
-import { authStorage } from '../utils/auth'
+import { useState } from 'react';
+import dataducaLogo from '../assets/dataduca_logo_01.png';
+import api from '../config/api';
+import { authStorage } from '../utils/auth';
 
 function Login({ onLoginSuccess }) {
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
-  const [showPassword, setShowPassword] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState(null)
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
-    
+    e.preventDefault();
+
     if (!username || !password) {
-      setError('Por favor, preencha todos os campos')
-      return
+      setError('Por favor, preencha todos os campos');
+      return;
     }
 
-    setIsLoading(true)
-    setError(null)
-    
+    setIsLoading(true);
+    setError(null);
+
     try {
-      const response = await api.auth.login(username, password)
-      
+      const response = await api.auth.login(username, password);
+
       // Salvar token e informações do usuário
-      authStorage.setToken(response.access_token)
+      authStorage.setToken(response.access_token);
       authStorage.setUser({
         user_id: response.user_id,
         user_name: response.user_name,
-        user_type: response.user_type
-      })
-      
+        user_type: response.user_type,
+      });
+
       // Após sucesso, chama o callback
       if (onLoginSuccess) {
-        onLoginSuccess()
+        onLoginSuccess();
       }
     } catch (err) {
-      const errorMessage = err.message || 'Erro ao fazer login. Verifique suas credenciais.'
-      setError(errorMessage)
-      console.error('Erro ao fazer login:', err)
+      const errorMessage =
+        err.message || 'Erro ao fazer login. Verifique suas credenciais.';
+      setError(errorMessage);
+      console.error('Erro ao fazer login:', err);
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   return (
-    <div 
+    <div
       className="min-h-screen flex items-center justify-center px-4 pt-8 pb-4"
       style={{ background: 'linear-gradient(90deg, #B8E3C0, #E6A8D7)' }}
     >
@@ -55,9 +56,9 @@ function Login({ onLoginSuccess }) {
         <div className="bg-white rounded-2xl shadow-xl p-8 space-y-6 border border-[#D9D9D9]">
           {/* Logo */}
           <div className="flex justify-center mb-6">
-            <img 
-              src={dataducaLogo} 
-              alt="Dataduca Logo" 
+            <img
+              src={dataducaLogo}
+              alt="Dataduca Logo"
               className="h-36 w-auto object-contain"
             />
           </div>
@@ -83,8 +84,8 @@ function Login({ onLoginSuccess }) {
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* Campo Usuário */}
             <div>
-              <label 
-                htmlFor="username" 
+              <label
+                htmlFor="username"
                 className="block text-sm font-medium text-[#333333] mb-2"
               >
                 Usuário
@@ -103,8 +104,8 @@ function Login({ onLoginSuccess }) {
 
             {/* Campo Senha */}
             <div>
-              <label 
-                htmlFor="password" 
+              <label
+                htmlFor="password"
                 className="block text-sm font-medium text-[#333333] mb-2"
               >
                 Senha
@@ -127,13 +128,38 @@ function Login({ onLoginSuccess }) {
                   disabled={isLoading}
                 >
                   {showPassword ? (
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
+                      />
                     </svg>
                   ) : (
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                      />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                      />
                     </svg>
                   )}
                 </button>
@@ -148,9 +174,25 @@ function Login({ onLoginSuccess }) {
             >
               {isLoading ? (
                 <>
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  <svg
+                    className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
                   </svg>
                   Entrando...
                 </>
@@ -162,12 +204,15 @@ function Login({ onLoginSuccess }) {
 
           {/* Link de esqueci a senha (opcional) */}
           <div className="text-center pt-4">
-            <a 
-              href="#" 
-              className="text-sm text-[#E6A8D7] hover:text-[#d897c8] transition-colors"
+            <button
+              type="button"
+              onClick={() => {
+                // TODO: Implementar funcionalidade de recuperação de senha
+              }}
+              className="text-sm text-[#E6A8D7] hover:text-[#d897c8] transition-colors bg-transparent border-none cursor-pointer"
             >
               Esqueci minha senha
-            </a>
+            </button>
           </div>
         </div>
 
@@ -177,8 +222,7 @@ function Login({ onLoginSuccess }) {
         </p>
       </div>
     </div>
-  )
+  );
 }
 
-export default Login
-
+export default Login;

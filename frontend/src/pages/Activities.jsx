@@ -8,14 +8,12 @@ function Activities({ onOpenActivity }) {
       type: 'digitacao',
       icon: '💭',
     },
-  ]
+  ];
 
   return (
     <div className="p-6">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-[#333333] mb-2">
-          Atividades
-        </h1>
+        <h1 className="text-3xl font-bold text-[#333333] mb-2">Atividades</h1>
         <p className="text-[#777777]">
           Escolha uma atividade para começar a aprender
         </p>
@@ -50,7 +48,17 @@ function Activities({ onOpenActivity }) {
         {activities.map((activity) => (
           <div
             key={activity.id}
-            onClick={() => onOpenActivity && onOpenActivity(activity.id, activity.type)}
+            onClick={() =>
+              onOpenActivity && onOpenActivity(activity.id, activity.type)
+            }
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onOpenActivity && onOpenActivity(activity.id, activity.type);
+              }
+            }}
+            role="button"
+            tabIndex={0}
             className="bg-white rounded-lg shadow border border-[#D9D9D9] p-6 cursor-pointer hover:shadow-lg transition-all hover:border-[#E6A8D7] group"
           >
             <div className="flex items-center gap-4 mb-4">
@@ -86,8 +94,7 @@ function Activities({ onOpenActivity }) {
         ))}
       </div>
     </div>
-  )
+  );
 }
 
-export default Activities
-
+export default Activities;
