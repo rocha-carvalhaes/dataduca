@@ -1,9 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
-import psycopg2
 from psycopg2.extras import RealDictCursor
-import os
 import json
 import logging
 from datetime import datetime
@@ -148,9 +146,7 @@ async def get_current_user_activity_params(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(
-            f"Erro ao obter parâmetros atuais: {str(e)}", exc_info=True
-        )
+        logger.error(f"Erro ao obter parâmetros atuais: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=500, detail=f"Erro ao obter parâmetros: {str(e)}"
         )
@@ -178,9 +174,7 @@ async def create_user_activity_params(
                 (params_data.activity_id,),
             )
             if not cur.fetchone():
-                raise HTTPException(
-                    status_code=404, detail="Atividade não encontrada"
-                )
+                raise HTTPException(status_code=404, detail="Atividade não encontrada")
 
             # Determinar o user_id a ser usado
             # Administradores e professores podem criar para qualquer usuário
@@ -245,9 +239,7 @@ async def create_user_activity_params(
     except Exception as e:
         if conn:
             conn.rollback()
-        logger.error(
-            f"Erro ao criar parâmetros: {str(e)}", exc_info=True
-        )
+        logger.error(f"Erro ao criar parâmetros: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=500, detail=f"Erro ao criar parâmetros: {str(e)}"
         )
@@ -295,21 +287,16 @@ async def get_user_activity_params(
                 not is_admin_or_professor(current_user.user_type)
                 and result["user_id"] != current_user.user_id
             ):
-                raise HTTPException(
-                    status_code=403, detail="Acesso negado"
-                )
+                raise HTTPException(status_code=403, detail="Acesso negado")
 
             return dict(result)
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(
-            f"Erro ao obter parâmetros: {str(e)}", exc_info=True
-        )
+        logger.error(f"Erro ao obter parâmetros: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=500, detail=f"Erro ao obter parâmetros: {str(e)}"
         )
     finally:
         if conn:
             conn.close()
-

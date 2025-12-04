@@ -195,9 +195,7 @@ async def create_user(
             )
             existing_user = cur.fetchone()
             if existing_user:
-                raise HTTPException(
-                    status_code=400, detail="Nome de usuário já existe"
-                )
+                raise HTTPException(status_code=400, detail="Nome de usuário já existe")
 
             # Hash da senha
             salt = bcrypt.gensalt()
@@ -221,12 +219,10 @@ async def create_user(
             conn.rollback()
         error_message = str(e)
         logger.error(f"Erro de integridade ao criar usuário: {error_message}")
-        
+
         # Verificar se é erro de constraint UNIQUE (nome duplicado)
         if "unique" in error_message.lower() or "duplicate" in error_message.lower():
-            raise HTTPException(
-                status_code=400, detail="Nome de usuário já existe"
-            )
+            raise HTTPException(status_code=400, detail="Nome de usuário já existe")
         else:
             # Outro tipo de erro de integridade
             raise HTTPException(

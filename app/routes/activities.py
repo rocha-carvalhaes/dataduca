@@ -1,9 +1,7 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from typing import List, Optional
-import psycopg2
 from psycopg2.extras import RealDictCursor
-import os
 import logging
 from dotenv import load_dotenv
 
