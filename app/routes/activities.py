@@ -54,20 +54,22 @@ async def get_typing_params(
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute(
                 """
-                SELECT params
-                FROM user_activity_params
-                WHERE user_id = %s
-                    AND activity_id = %s
-                    AND active = TRUE
-                ORDER BY initiated_at DESC
+                SELECT ap.level_params
+                FROM user_activity_params uap
+                JOIN activity_params ap ON uap.activity_param_id = ap.activity_param_id
+                WHERE uap.user_id = %s
+                    AND ap.activity_id = %s
+                    AND uap.active = TRUE
+                    AND ap.active = TRUE
+                ORDER BY uap.initiated_at DESC
                 LIMIT 1
             """,
                 (current_user.user_id, activity_id),
             )
             result = cur.fetchone()
 
-            if result and result["params"]:
-                params = result["params"]
+            if result and result["level_params"]:
+                params = result["level_params"]
                 # Validar e retornar parâmetros personalizados
                 return TypingActivityParams(
                     characters=params.get("characters", default_params.characters),
@@ -102,11 +104,21 @@ async def get_unscramble_phrases_params(
     # Parâmetros padrão
     default_params = UnscramblePhrasesParams(
         phrases=[
-            "O gato está na casa",
-            "A menina brinca no parque",
-            "O sol brilha no céu",
-            "A árvore cresce no jardim",
-            "O livro está na mesa",
+            "O GATO DORME",
+            "A MENINA CORRE",
+            "O SOL BRILHA",
+            "A BOLA ROLA",
+            "O PÁSSARO VOA",
+            "A FLOR CRESCE",
+            "O CÃO LATE",
+            "A CHUVA CAI",
+            "O PEIXE NADA",
+            "A CRIANÇA RI",
+            "O VENTO SOPRA",
+            "A VACA MUJE",
+            "O SAPO PULA",
+            "A FOLHA CAI",
+            "O CARRO ANDA",
         ],
         phrases_per_session=5,
     )
@@ -122,20 +134,22 @@ async def get_unscramble_phrases_params(
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute(
                 """
-                SELECT params
-                FROM user_activity_params
-                WHERE user_id = %s
-                    AND activity_id = %s
-                    AND active = TRUE
-                ORDER BY initiated_at DESC
+                SELECT ap.level_params
+                FROM user_activity_params uap
+                JOIN activity_params ap ON uap.activity_param_id = ap.activity_param_id
+                WHERE uap.user_id = %s
+                    AND ap.activity_id = %s
+                    AND uap.active = TRUE
+                    AND ap.active = TRUE
+                ORDER BY uap.initiated_at DESC
                 LIMIT 1
             """,
                 (current_user.user_id, activity_id),
             )
             result = cur.fetchone()
 
-            if result and result["params"]:
-                params = result["params"]
+            if result and result["level_params"]:
+                params = result["level_params"]
                 # Validar e retornar parâmetros personalizados
                 return UnscramblePhrasesParams(
                     phrases=params.get("phrases", default_params.phrases),

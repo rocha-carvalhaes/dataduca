@@ -194,16 +194,46 @@ export const api = {
       });
     },
   },
-  userActivityParams: {
-    async list(activityId = null, userId = null, activeOnly = true) {
+  activityParams: {
+    async list(activityId = null, activeOnly = true) {
       const params = new URLSearchParams();
       if (activityId) params.append('activity_id', activityId);
+      params.append('active_only', activeOnly);
+      return api.request(`/api/activity-params/?${params.toString()}`);
+    },
+    async get(id) {
+      return api.request(`/api/activity-params/${id}`);
+    },
+    async create(data) {
+      return api.request('/api/activity-params/', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+    },
+    async update(id, data) {
+      return api.request(`/api/activity-params/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      });
+    },
+    async delete(id) {
+      return api.request(`/api/activity-params/${id}`, {
+        method: 'DELETE',
+      });
+    },
+  },
+  userActivityParams: {
+    async list(activityParamId = null, userId = null, activeOnly = true) {
+      const params = new URLSearchParams();
+      if (activityParamId) params.append('activity_param_id', activityParamId);
       if (userId) params.append('user_id', userId);
       params.append('active_only', activeOnly);
       return api.request(`/api/user-activity-params/?${params.toString()}`);
     },
-    async getCurrent(activityId) {
-      return api.request(`/api/user-activity-params/current/${activityId}`);
+    async getCurrent(activityParamId) {
+      return api.request(
+        `/api/user-activity-params/current/${activityParamId}`
+      );
     },
     async create(data) {
       return api.request('/api/user-activity-params/', {
