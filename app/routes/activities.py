@@ -54,20 +54,22 @@ async def get_typing_params(
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute(
                 """
-                SELECT params
-                FROM user_activity_params
-                WHERE user_id = %s
-                    AND activity_id = %s
-                    AND active = TRUE
-                ORDER BY initiated_at DESC
+                SELECT ap.level_params
+                FROM user_activity_params uap
+                JOIN activity_params ap ON uap.activity_param_id = ap.activity_param_id
+                WHERE uap.user_id = %s
+                    AND ap.activity_id = %s
+                    AND uap.active = TRUE
+                    AND ap.active = TRUE
+                ORDER BY uap.initiated_at DESC
                 LIMIT 1
             """,
                 (current_user.user_id, activity_id),
             )
             result = cur.fetchone()
 
-            if result and result["params"]:
-                params = result["params"]
+            if result and result["level_params"]:
+                params = result["level_params"]
                 # Validar e retornar parâmetros personalizados
                 return TypingActivityParams(
                     characters=params.get("characters", default_params.characters),
@@ -122,20 +124,22 @@ async def get_unscramble_phrases_params(
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute(
                 """
-                SELECT params
-                FROM user_activity_params
-                WHERE user_id = %s
-                    AND activity_id = %s
-                    AND active = TRUE
-                ORDER BY initiated_at DESC
+                SELECT ap.level_params
+                FROM user_activity_params uap
+                JOIN activity_params ap ON uap.activity_param_id = ap.activity_param_id
+                WHERE uap.user_id = %s
+                    AND ap.activity_id = %s
+                    AND uap.active = TRUE
+                    AND ap.active = TRUE
+                ORDER BY uap.initiated_at DESC
                 LIMIT 1
             """,
                 (current_user.user_id, activity_id),
             )
             result = cur.fetchone()
 
-            if result and result["params"]:
-                params = result["params"]
+            if result and result["level_params"]:
+                params = result["level_params"]
                 # Validar e retornar parâmetros personalizados
                 return UnscramblePhrasesParams(
                     phrases=params.get("phrases", default_params.phrases),

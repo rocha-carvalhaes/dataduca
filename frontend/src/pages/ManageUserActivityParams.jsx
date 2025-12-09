@@ -11,6 +11,7 @@ function ManageUserActivityParams() {
   const [paramsList, setParamsList] = useState([]);
   const [users, setUsers] = useState([]);
   const [activities, setActivities] = useState([]);
+  const [activityParams, setActivityParams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showForm, setShowForm] = useState(false);
@@ -18,19 +19,8 @@ function ManageUserActivityParams() {
   const [formData, setFormData] = useState({
     user_id: '',
     activity_id: '',
-    params: JSON.stringify(
-      {
-        characters: ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'],
-        total_bubbles: 15,
-        speed: 1.5,
-      },
-      null,
-      2
-    ),
+    level: '',
   });
-  const [jsonError, setJsonError] = useState(null);
-  const [jsonExpanded, setJsonExpanded] = useState(false); // Por padrão, JSON recolhido
-  const [expandedRows, setExpandedRows] = useState(new Set()); // Linhas individuais expandidas
 
   useEffect(() => {
     const user = authStorage.getUser();
@@ -48,13 +38,16 @@ function ManageUserActivityParams() {
     try {
       setLoading(true);
       setError(null);
-      const [usersData, activitiesData, paramsData] = await Promise.all([
-        api.users.list(),
-        api.activities.list(),
-        api.userActivityParams.list(null, null, false),
-      ]);
+      const [usersData, activitiesData, activityParamsData, paramsData] =
+        await Promise.all([
+          api.users.list(),
+          api.activities.list(),
+          api.activityParams.list(null, false),
+          api.userActivityParams.list(null, null, false),
+        ]);
       setUsers(usersData);
       setActivities(activitiesData);
+      setActivityParams(activityParamsData);
       setParamsList(paramsData);
     } catch (err) {
       setError(err.message || 'Erro ao carregar dados. Tente novamente.');
@@ -64,45 +57,27 @@ function ManageUserActivityParams() {
     }
   };
 
-  const validateJSON = (jsonString) => {
-    try {
-      const parsed = JSON.parse(jsonString);
-      // Apenas validar se é um objeto JSON válido, sem restringir estrutura
-      if (typeof parsed !== 'object' || parsed === null) {
-        return { valid: false, error: 'JSON deve ser um objeto' };
-      }
-      return { valid: true, parsed };
-    } catch (e) {
-      return { valid: false, error: `JSON inválido: ${e.message}` };
-    }
-  };
-
-  const handleParamsChange = (e) => {
-    const value = e.target.value;
-    setFormData({ ...formData, params: value });
-    const validation = validateJSON(value);
-    if (validation.valid) {
-      setJsonError(null);
-    } else {
-      setJsonError(validation.error);
-    }
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
 
-    // Validar JSON antes de enviar
-    const validation = validateJSON(formData.params);
-    if (!validation.valid) {
-      setError(validation.error);
-      return;
-    }
-
     try {
+      // Buscar o activity_param_id correspondente à atividade e nível selecionados
+      const selectedActivityParam = activityParams.find(
+        (ap) =>
+          ap.activity_id === parseInt(formData.activity_id) &&
+          ap.level === parseInt(formData.level) &&
+          ap.active
+      );
+
+      if (!selectedActivityParam) {
+        setError('Parâmetro de nível não encontrado para a atividade e nível selecionados.');
+        return;
+      }
+
       const payload = {
+        activity_param_id: selectedActivityParam.activity_param_id,
         activity_id: parseInt(formData.activity_id),
-        params: validation.parsed,
       };
       // Se for administrador/professor e selecionou um usuário, incluir user_id
       // Se for aluno, não enviar user_id (backend usa current_user)
@@ -111,20 +86,7 @@ function ManageUserActivityParams() {
       }
       await api.userActivityParams.create(payload);
       setShowForm(false);
-      setFormData({
-        user_id: '',
-        activity_id: '',
-        params: JSON.stringify(
-          {
-            characters: ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'],
-            total_bubbles: 15,
-            speed: 1.5,
-          },
-          null,
-          2
-        ),
-      });
-      setJsonError(null);
+      resetForm();
       loadData();
     } catch (err) {
       setError(err.message || 'Erro ao salvar parâmetros. Tente novamente.');
@@ -132,23 +94,30 @@ function ManageUserActivityParams() {
     }
   };
 
-  const handleCancel = () => {
-    setShowForm(false);
+  const resetForm = () => {
     setFormData({
       user_id: '',
       activity_id: '',
-      params: JSON.stringify(
-        {
-          characters: ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'],
-          total_bubbles: 15,
-          speed: 1.5,
-        },
-        null,
-        2
-      ),
+      level: '',
     });
+  };
+
+  // Filtrar níveis disponíveis para a atividade selecionada
+  const getAvailableLevels = () => {
+    if (!formData.activity_id) return [];
+    return activityParams
+      .filter(
+        (ap) =>
+          ap.activity_id === parseInt(formData.activity_id) && ap.active
+      )
+      .map((ap) => ap.level)
+      .sort((a, b) => a - b);
+  };
+
+  const handleCancel = () => {
+    setShowForm(false);
+    resetForm();
     setError(null);
-    setJsonError(null);
   };
 
   const formatDate = (dateString) => {
@@ -161,46 +130,27 @@ function ManageUserActivityParams() {
     return user ? user.user_name : `ID: ${userId}`;
   };
 
-  const getActivityName = (activityId) => {
-    const activity = activities.find((a) => a.activity_id === activityId);
-    return activity ? activity.activity_name : `ID: ${activityId}`;
+  const getActivityLevel = (activityParamId) => {
+    const activityParam = activityParams.find(
+      (ap) => ap.activity_param_id === activityParamId
+    );
+    if (!activityParam) {
+      return '-';
+    }
+    return activityParam.level;
   };
 
-  const toggleJsonExpanded = () => {
-    setJsonExpanded(!jsonExpanded);
-    if (!jsonExpanded) {
-      // Se está expandindo todos, adiciona todas as linhas ao Set
-      const allIds = new Set(paramsList.map((p) => p.user_activity_params_id));
-      setExpandedRows(allIds);
-    } else {
-      // Se está recolhendo todos, limpa o Set
-      setExpandedRows(new Set());
+  const getActivityName = (activityParamId) => {
+    const activityParam = activityParams.find(
+      (ap) => ap.activity_param_id === activityParamId
+    );
+    if (!activityParam) {
+      return '-';
     }
-  };
-
-  const toggleRowExpanded = (id) => {
-    const newExpanded = new Set(expandedRows);
-    if (newExpanded.has(id)) {
-      newExpanded.delete(id);
-    } else {
-      newExpanded.add(id);
-    }
-    setExpandedRows(newExpanded);
-  };
-
-  const isRowExpanded = (id) => {
-    if (jsonExpanded) {
-      return true; // Se todos estão expandidos, esta linha também está
-    }
-    return expandedRows.has(id);
-  };
-
-  const getJsonPreview = (jsonObj) => {
-    const jsonString = JSON.stringify(jsonObj);
-    if (jsonString.length > 50) {
-      return jsonString.substring(0, 50) + '...';
-    }
-    return jsonString;
+    const activity = activities.find(
+      (a) => a.activity_id === activityParam.activity_id
+    );
+    return activity ? activity.activity_name : `ID: ${activityParam.activity_id}`;
   };
 
   if (loading) {
@@ -234,12 +184,10 @@ function ManageUserActivityParams() {
       {showForm && (
         <div className="bg-white rounded-lg shadow border border-[#D9D9D9] p-6 mb-6">
           <h3 className="text-xl font-semibold text-[#333333] mb-4">
-            {formData.user_id && formData.activity_id
-              ? 'Editar Parâmetros'
-              : 'Novos Parâmetros'}
+            Novos Parâmetros
           </h3>
           <form onSubmit={handleSubmit}>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
               <div>
                 <label
                   htmlFor="user_id"
@@ -290,48 +238,60 @@ function ManageUserActivityParams() {
                   id="activity_id"
                   value={formData.activity_id}
                   onChange={(e) =>
-                    setFormData({ ...formData, activity_id: e.target.value })
+                    setFormData({
+                      ...formData,
+                      activity_id: e.target.value,
+                      level: '', // Reset level when activity changes
+                    })
                   }
                   className="w-full px-3 py-2 border border-[#D9D9D9] rounded focus:outline-none focus:ring-2 focus:ring-[#E6A8D7]"
                   required
                 >
                   <option value="">Selecione uma atividade</option>
                   {activities.map((activity) => (
-                    <option
-                      key={activity.activity_id}
-                      value={activity.activity_id}
-                    >
+                    <option key={activity.activity_id} value={activity.activity_id}>
                       {activity.activity_name}
                     </option>
                   ))}
                 </select>
               </div>
-            </div>
-
-            <div className="mb-4">
-              <label
-                htmlFor="params"
-                className="block text-sm font-medium text-[#333333] mb-2"
-              >
-                Parâmetros (JSON) *
-              </label>
-              <textarea
-                id="params"
-                value={formData.params}
-                onChange={handleParamsChange}
-                rows={12}
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-[#E6A8D7] font-mono text-sm ${
-                  jsonError ? 'border-red-300 bg-red-50' : 'border-[#D9D9D9]'
-                }`}
-                required
-              />
-              {jsonError && (
-                <p className="mt-1 text-sm text-red-600">{jsonError}</p>
-              )}
-              <p className="mt-1 text-xs text-[#6E6E6E]">
-                Digite um objeto JSON válido. A estrutura é livre e pode variar
-                conforme a atividade.
-              </p>
+              <div>
+                <label
+                  htmlFor="level"
+                  className="block text-sm font-medium text-[#333333] mb-2"
+                >
+                  Nível *
+                </label>
+                <select
+                  id="level"
+                  value={formData.level}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      level: e.target.value,
+                    })
+                  }
+                  className="w-full px-3 py-2 border border-[#D9D9D9] rounded focus:outline-none focus:ring-2 focus:ring-[#E6A8D7]"
+                  required
+                  disabled={!formData.activity_id}
+                >
+                  <option value="">
+                    {formData.activity_id
+                      ? 'Selecione um nível'
+                      : 'Selecione uma atividade primeiro'}
+                  </option>
+                  {getAvailableLevels().map((level) => (
+                    <option key={level} value={level}>
+                      Nível {level}
+                    </option>
+                  ))}
+                </select>
+                {!formData.activity_id && (
+                  <p className="mt-1 text-xs text-[#6E6E6E]">
+                    Selecione uma atividade primeiro
+                  </p>
+                )}
+              </div>
             </div>
 
             <div className="flex gap-2">
@@ -368,44 +328,7 @@ function ManageUserActivityParams() {
                   Atividade
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-[#6E6E6E] uppercase tracking-wider">
-                  <div className="flex items-center gap-2">
-                    <span>Parâmetros</span>
-                    <button
-                      onClick={toggleJsonExpanded}
-                      className="p-1 hover:bg-gray-200 rounded transition-colors"
-                      title={jsonExpanded ? 'Recolher todos' : 'Expandir todos'}
-                    >
-                      {jsonExpanded ? (
-                        <svg
-                          className="w-4 h-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M5 15l7-7 7 7"
-                          />
-                        </svg>
-                      ) : (
-                        <svg
-                          className="w-4 h-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19 9l-7 7-7-7"
-                          />
-                        </svg>
-                      )}
-                    </button>
-                  </div>
+                  Nível
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-[#6E6E6E] uppercase tracking-wider">
                   Iniciado em
@@ -441,61 +364,10 @@ function ManageUserActivityParams() {
                       {getUserName(param.user_id)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-[#333333]">
-                      {getActivityName(param.activity_id)}
+                      {getActivityName(param.activity_param_id)}
                     </td>
-                    <td className="px-6 py-4 text-sm text-[#333333]">
-                      <div className="flex items-start gap-2">
-                        <button
-                          onClick={() =>
-                            toggleRowExpanded(param.user_activity_params_id)
-                          }
-                          className="p-1 hover:bg-gray-200 rounded transition-colors mt-1"
-                          title={
-                            isRowExpanded(param.user_activity_params_id)
-                              ? 'Recolher'
-                              : 'Expandir'
-                          }
-                        >
-                          {isRowExpanded(param.user_activity_params_id) ? (
-                            <svg
-                              className="w-4 h-4"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M5 15l7-7 7 7"
-                              />
-                            </svg>
-                          ) : (
-                            <svg
-                              className="w-4 h-4"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M19 9l-7 7-7-7"
-                              />
-                            </svg>
-                          )}
-                        </button>
-                        {isRowExpanded(param.user_activity_params_id) ? (
-                          <pre className="bg-gray-50 p-2 rounded text-xs overflow-x-auto max-w-xs flex-1">
-                            {JSON.stringify(param.params, null, 2)}
-                          </pre>
-                        ) : (
-                          <span className="bg-gray-50 p-2 rounded text-xs text-[#6E6E6E] max-w-xs flex-1">
-                            {getJsonPreview(param.params)}
-                          </span>
-                        )}
-                      </div>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-[#333333]">
+                      {getActivityLevel(param.activity_param_id)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-[#333333]">
                       {formatDate(param.initiated_at)}

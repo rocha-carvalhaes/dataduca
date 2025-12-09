@@ -10,6 +10,7 @@ from app.routes import (
     activities_manage,
     documents,
     user_activity_params,
+    activity_params,
 )
 from app.core.config import settings
 
@@ -40,6 +41,7 @@ app.include_router(users.router)
 app.include_router(user_sessions.router)
 app.include_router(activity_sessions.router)
 app.include_router(documents.router)
+app.include_router(activity_params.router)
 app.include_router(user_activity_params.router)
 
 # Define o endpoint raiz

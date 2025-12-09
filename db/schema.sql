@@ -73,18 +73,36 @@ CREATE TABLE documents (
 CREATE INDEX idx_documents_created_by ON documents(created_by);
 
 -- ======================================
+-- Parâmetros de níveis de atividades (SCD Tipo 2)
+-- ======================================
+CREATE TABLE activity_params (
+    activity_param_id SERIAL PRIMARY KEY,
+    activity_id INT NOT NULL REFERENCES activities(activity_id) ON DELETE CASCADE,
+    level INT NOT NULL,
+    level_params JSONB NOT NULL,
+    level_down_params JSONB,
+    level_up_params JSONB,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    ended_at TIMESTAMP,
+    active BOOLEAN NOT NULL DEFAULT TRUE
+);
+
+CREATE INDEX idx_activity_params_activity_id ON activity_params(activity_id);
+CREATE INDEX idx_activity_params_level ON activity_params(activity_id, level);
+CREATE INDEX idx_activity_params_active ON activity_params(activity_id, level, active) WHERE active = TRUE;
+
+-- ======================================
 -- Parâmetros de atividade por usuário (SCD Tipo 2)
 -- ======================================
 CREATE TABLE user_activity_params (
     user_activity_params_id SERIAL PRIMARY KEY,
-    activity_id INT NOT NULL REFERENCES activities(activity_id) ON DELETE CASCADE,
+    activity_param_id INT NOT NULL REFERENCES activity_params(activity_param_id) ON DELETE CASCADE,
     user_id INT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
-    params JSONB NOT NULL,
     initiated_at TIMESTAMP NOT NULL DEFAULT NOW(),
     ended_at TIMESTAMP,
     active BOOLEAN NOT NULL DEFAULT TRUE
 );
 
 CREATE INDEX idx_user_activity_params_user_id ON user_activity_params(user_id);
-CREATE INDEX idx_user_activity_params_activity_id ON user_activity_params(activity_id);
-CREATE INDEX idx_user_activity_params_active ON user_activity_params(user_id, activity_id, active) WHERE active = TRUE;
+CREATE INDEX idx_user_activity_params_activity_param_id ON user_activity_params(activity_param_id);
+CREATE INDEX idx_user_activity_params_active ON user_activity_params(user_id, activity_param_id, active) WHERE active = TRUE;

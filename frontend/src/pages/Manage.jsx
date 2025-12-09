@@ -3,6 +3,7 @@ import ManageUsers from './ManageUsers';
 import ManageUserSessions from './ManageUserSessions';
 import ManageActivities from './ManageActivities';
 import ManageActivitySessions from './ManageActivitySessions';
+import ManageActivityParams from './ManageActivityParams';
 import ManageUserActivityParams from './ManageUserActivityParams';
 
 function Manage() {
@@ -86,6 +87,25 @@ function Manage() {
       ),
     },
     {
+      id: 'activity-params',
+      label: 'Parâmetros de Níveis',
+      icon: (
+        <svg
+          className="w-5 h-5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+          />
+        </svg>
+      ),
+    },
+    {
       id: 'user-activity-params',
       label: 'Parâmetros por Usuário',
       icon: (
@@ -122,6 +142,8 @@ function Manage() {
         return <ManageActivities />;
       case 'activity-sessions':
         return <ManageActivitySessions />;
+      case 'activity-params':
+        return <ManageActivityParams />;
       case 'user-activity-params':
         return <ManageUserActivityParams />;
       default:

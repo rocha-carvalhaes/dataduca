@@ -1,8 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 from psycopg2.extras import RealDictCursor
-import json
 import logging
 from datetime import datetime
 from dotenv import load_dotenv
@@ -23,20 +22,15 @@ def is_admin_or_professor(user_type: str) -> bool:
 
 
 class UserActivityParamsCreate(BaseModel):
-    activity_id: int
-    params: Dict[str, Any]  # JSONB com os parâmetros
+    activity_param_id: int
+    activity_id: Optional[int] = None  # Opcional: usado para inativar todos os parâmetros da mesma atividade
     user_id: Optional[int] = None  # Opcional: se não fornecido, usa current_user
-
-
-class UserActivityParamsUpdate(BaseModel):
-    params: Dict[str, Any]
 
 
 class UserActivityParamsResponse(BaseModel):
     user_activity_params_id: int
-    activity_id: int
+    activity_param_id: int
     user_id: int
-    params: Dict[str, Any]
     initiated_at: datetime
     ended_at: Optional[datetime] = None
     active: bool
@@ -47,7 +41,7 @@ class UserActivityParamsResponse(BaseModel):
 
 @router.get("/", response_model=List[UserActivityParamsResponse])
 async def list_user_activity_params(
-    activity_id: Optional[int] = None,
+    activity_param_id: Optional[int] = None,
     user_id: Optional[int] = None,
     active_only: bool = True,
     current_user: TokenData = Depends(get_current_user),
@@ -63,14 +57,13 @@ async def list_user_activity_params(
             query = """
                 SELECT
                     user_activity_params_id,
-                    activity_id,
+                    activity_param_id,
                     user_id,
-                    params,
                     initiated_at,
                     ended_at,
                     active
                 FROM user_activity_params
-                WHERE 1=1
+                WHERE activity_param_id IS NOT NULL
             """
             params = []
 
@@ -82,9 +75,9 @@ async def list_user_activity_params(
                 query += " AND user_id = %s"
                 params.append(user_id)
 
-            if activity_id:
-                query += " AND activity_id = %s"
-                params.append(activity_id)
+            if activity_param_id:
+                query += " AND activity_param_id = %s"
+                params.append(activity_param_id)
 
             if active_only:
                 query += " AND active = TRUE"
@@ -104,13 +97,13 @@ async def list_user_activity_params(
             conn.close()
 
 
-@router.get("/current/{activity_id}", response_model=UserActivityParamsResponse)
+@router.get("/current/{activity_param_id}", response_model=UserActivityParamsResponse)
 async def get_current_user_activity_params(
-    activity_id: int,
+    activity_param_id: int,
     current_user: TokenData = Depends(get_current_user),
 ):
     """
-    Obtém os parâmetros ativos atuais do usuário para uma atividade específica.
+    Obtém os parâmetros ativos atuais do usuário para um parâmetro de nível específico.
     Se não existir, retorna 404.
     """
     conn = None
@@ -121,26 +114,26 @@ async def get_current_user_activity_params(
                 """
                 SELECT
                     user_activity_params_id,
-                    activity_id,
+                    activity_param_id,
                     user_id,
-                    params,
                     initiated_at,
                     ended_at,
                     active
                 FROM user_activity_params
                 WHERE user_id = %s
-                    AND activity_id = %s
+                    AND activity_param_id = %s
+                    AND activity_param_id IS NOT NULL
                     AND active = TRUE
                 ORDER BY initiated_at DESC
                 LIMIT 1
             """,
-                (current_user.user_id, activity_id),
+                (current_user.user_id, activity_param_id),
             )
             result = cur.fetchone()
             if not result:
                 raise HTTPException(
                     status_code=404,
-                    detail="Parâmetros não encontrados para este usuário e atividade",
+                    detail="Parâmetros não encontrados para este usuário e parâmetro de nível",
                 )
             return dict(result)
     except HTTPException:
@@ -161,20 +154,22 @@ async def create_user_activity_params(
     current_user: TokenData = Depends(get_current_user),
 ):
     """
-    Cria novos parâmetros para um usuário e atividade.
+    Cria novos parâmetros para um usuário e parâmetro de nível.
     Seguindo SCD Tipo 2: inativa parâmetros anteriores e cria um novo registro.
     """
     conn = None
     try:
         conn = get_db_connection()
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            # Verificar se a atividade existe
+            # Verificar se o parâmetro de nível existe
             cur.execute(
-                "SELECT activity_id FROM activities WHERE activity_id = %s",
-                (params_data.activity_id,),
+                "SELECT activity_param_id FROM activity_params WHERE activity_param_id = %s",
+                (params_data.activity_param_id,),
             )
             if not cur.fetchone():
-                raise HTTPException(status_code=404, detail="Atividade não encontrada")
+                raise HTTPException(
+                    status_code=404, detail="Parâmetro de nível não encontrado"
+                )
 
             # Determinar o user_id a ser usado
             # Administradores e professores podem criar para qualquer usuário
@@ -198,35 +193,51 @@ async def create_user_activity_params(
             else:
                 user_id = current_user.user_id
 
-            # Inativar parâmetros anteriores (SCD Tipo 2)
-            cur.execute(
-                """
-                UPDATE user_activity_params
-                SET active = FALSE, ended_at = NOW()
-                WHERE user_id = %s
-                    AND activity_id = %s
-                    AND active = TRUE
-            """,
-                (user_id, params_data.activity_id),
-            )
+            # Buscar o activity_id do parâmetro selecionado se não foi fornecido
+            activity_id_to_inactivate = params_data.activity_id
+            if not activity_id_to_inactivate:
+                cur.execute(
+                    "SELECT activity_id FROM activity_params WHERE activity_param_id = %s",
+                    (params_data.activity_param_id,),
+                )
+                activity_param_result = cur.fetchone()
+                if activity_param_result:
+                    activity_id_to_inactivate = activity_param_result["activity_id"]
+
+            # Inativar todos os parâmetros anteriores do mesmo usuário e mesma atividade (SCD Tipo 2)
+            # Isso garante que apenas um nível por atividade esteja ativo por usuário
+            if activity_id_to_inactivate:
+                cur.execute(
+                    """
+                    UPDATE user_activity_params
+                    SET active = FALSE, ended_at = NOW()
+                    WHERE user_id = %s
+                        AND activity_param_id IN (
+                            SELECT activity_param_id
+                            FROM activity_params
+                            WHERE activity_id = %s
+                        )
+                        AND active = TRUE
+                """,
+                    (user_id, activity_id_to_inactivate),
+                )
 
             # Criar novo registro com parâmetros ativos
             cur.execute(
                 """
                 INSERT INTO user_activity_params (
-                    activity_id, user_id, params, active
+                    activity_param_id, user_id, active
                 )
-                VALUES (%s, %s, %s, TRUE)
+                VALUES (%s, %s, TRUE)
                 RETURNING
                     user_activity_params_id,
-                    activity_id,
+                    activity_param_id,
                     user_id,
-                    params,
                     initiated_at,
                     ended_at,
                     active
             """,
-                (params_data.activity_id, user_id, json.dumps(params_data.params)),
+                (params_data.activity_param_id, user_id),
             )
             new_params = cur.fetchone()
 
@@ -264,14 +275,14 @@ async def get_user_activity_params(
                 """
                 SELECT
                     user_activity_params_id,
-                    activity_id,
+                    activity_param_id,
                     user_id,
-                    params,
                     initiated_at,
                     ended_at,
                     active
                 FROM user_activity_params
                 WHERE user_activity_params_id = %s
+                    AND activity_param_id IS NOT NULL
             """,
                 (user_activity_params_id,),
             )
