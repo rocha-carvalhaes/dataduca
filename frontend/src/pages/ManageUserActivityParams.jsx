@@ -239,20 +239,19 @@ function ManageUserActivityParams() {
           Níveis de Atividades por Usuário
         </h2>
         <div className="flex gap-4">
-          {isAdminOrProfessor(currentUser?.user_type) &&
-            currentUser?.user_id && (
-              <button
-                onClick={() => handleEvaluateAllLevels(currentUser.user_id)}
-                className={`px-4 py-2 rounded transition-colors ${
-                  evaluating
-                    ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
-                    : 'bg-blue-600 text-white hover:bg-blue-700'
-                }`}
-                disabled={evaluating}
-              >
-                {evaluating ? 'Avaliando...' : 'Atualizar Todos os Níveis'}
-              </button>
-            )}
+          {isAdminOrProfessor(currentUser?.user_type) && currentUser?.user_id && (
+            <button
+              onClick={() => handleEvaluateAllLevels(currentUser.user_id)}
+              className={`px-4 py-2 rounded transition-colors ${
+                evaluating
+                  ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
+              }`}
+              disabled={evaluating}
+            >
+              {evaluating ? 'Avaliando...' : 'Atualizar Todos os Níveis'}
+            </button>
+          )}
           <button
             onClick={() => setShowForm(true)}
             className="px-4 py-2 bg-[#E6A8D7] text-white rounded hover:bg-[#D997C7] transition-colors"

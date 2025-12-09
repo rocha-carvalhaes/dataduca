@@ -2,7 +2,6 @@
 Módulo para avaliação de progressão de níveis de usuários.
 Avalia histórico de sessões e determina se o usuário deve subir ou descer de nível.
 """
-
 from typing import Optional, List
 from psycopg2.extras import RealDictCursor
 from datetime import datetime
@@ -69,7 +68,9 @@ class LevelEvaluator:
                 sessions = cur.fetchall()
                 return [dict(session) for session in sessions]
         except Exception as e:
-            logger.error(f"Erro ao buscar sessões recentes: {str(e)}", exc_info=True)
+            logger.error(
+                f"Erro ao buscar sessões recentes: {str(e)}", exc_info=True
+            )
             return []
         finally:
             if conn:
@@ -127,8 +128,12 @@ class LevelEvaluator:
         )
 
         # Parâmetros para descer de nível
-        down_games_count = level_down_params.get("games_count", len(recent_sessions))
-        down_required_games = level_down_params.get("required_games", down_games_count)
+        down_games_count = level_down_params.get(
+            "games_count", len(recent_sessions)
+        )
+        down_required_games = level_down_params.get(
+            "required_games", down_games_count
+        )
         max_avg_hit_rate_threshold = level_down_params.get("max_avg_hit_rate", 50)
 
         logger.info(
@@ -141,9 +146,7 @@ class LevelEvaluator:
 
         # Verificar se deve subir de nível
         if level_up_params and up_sessions:
-            hit_rates = LevelEvaluator._extract_hit_rates(
-                up_sessions, up_required_games
-            )
+            hit_rates = LevelEvaluator._extract_hit_rates(up_sessions, up_required_games)
 
             logger.info(
                 f"UP: {len(hit_rates)} hit_rates encontrados (limitado a {up_required_games}), "
@@ -166,9 +169,7 @@ class LevelEvaluator:
 
         # Verificar se deve descer de nível
         if level_down_params and down_sessions:
-            hit_rates = LevelEvaluator._extract_hit_rates(
-                down_sessions, down_required_games
-            )
+            hit_rates = LevelEvaluator._extract_hit_rates(down_sessions, down_required_games)
 
             logger.info(
                 f"DOWN: {len(hit_rates)} hit_rates encontrados (limitado a {down_required_games}), "
@@ -207,7 +208,9 @@ class LevelEvaluator:
         # Parâmetros para subir de nível
         up_games_count = level_up_params.get("games_count", len(recent_sessions))
         up_required_games = level_up_params.get("required_games", up_games_count)
-        max_movements_percentage = level_up_params.get("max_movements_percentage", 80)
+        max_movements_percentage = level_up_params.get(
+            "max_movements_percentage", 80
+        )
 
         logger.info(
             f"Parâmetros UP: games_count={up_games_count}, "
@@ -215,8 +218,12 @@ class LevelEvaluator:
         )
 
         # Parâmetros para descer de nível
-        down_games_count = level_down_params.get("games_count", len(recent_sessions))
-        down_required_games = level_down_params.get("required_games", down_games_count)
+        down_games_count = level_down_params.get(
+            "games_count", len(recent_sessions)
+        )
+        down_required_games = level_down_params.get(
+            "required_games", down_games_count
+        )
         min_movements_percentage = level_down_params.get(
             "min_movements_percentage", 120
         )
@@ -273,13 +280,11 @@ class LevelEvaluator:
 
                 # Se a sessão tem pelo menos uma frase, é válida
                 if session_phrases > 0:
-                    valid_sessions.append(
-                        {
-                            "movements": session_movements,
-                            "words": session_words,
-                            "phrases": session_phrases,
-                        }
-                    )
+                    valid_sessions.append({
+                        "movements": session_movements,
+                        "words": session_words,
+                        "phrases": session_phrases,
+                    })
 
             # Limitar a required_games (apenas as sessões mais recentes)
             valid_sessions = valid_sessions[:required_games]
@@ -314,7 +319,10 @@ class LevelEvaluator:
                 f"total_phrases={total_phrases}, required={up_required_games}, "
                 f"threshold={max_movements_percentage}"
             )
-            if percentage is not None and valid_sessions_count >= up_required_games:
+            if (
+                percentage is not None
+                and valid_sessions_count >= up_required_games
+            ):
                 if percentage < max_movements_percentage:
                     logger.info("UP: Critério atendido, subindo de nível")
                     return {
@@ -329,7 +337,9 @@ class LevelEvaluator:
         # Verificar se deve descer de nível
         if level_down_params and down_sessions:
             percentage, valid_sessions_count, total_phrases = (
-                calculate_avg_movements_percentage(down_sessions, down_required_games)
+                calculate_avg_movements_percentage(
+                    down_sessions, down_required_games
+                )
             )
 
             logger.info(
@@ -337,7 +347,10 @@ class LevelEvaluator:
                 f"total_phrases={total_phrases}, required={down_required_games}, "
                 f"threshold={min_movements_percentage}"
             )
-            if percentage is not None and valid_sessions_count >= down_required_games:
+            if (
+                percentage is not None
+                and valid_sessions_count >= down_required_games
+            ):
                 if percentage > min_movements_percentage:
                     logger.info("DOWN: Critério atendido, descendo de nível")
                     return {
