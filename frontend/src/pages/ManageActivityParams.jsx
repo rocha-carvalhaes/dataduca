@@ -43,7 +43,7 @@ function ManageActivityParams() {
     }
   };
 
-  const validateJSON = (jsonString, fieldName) => {
+  const validateJSON = (jsonString) => {
     try {
       if (!jsonString || jsonString.trim() === '') {
         return { valid: true, parsed: null };
@@ -68,7 +68,7 @@ function ManageActivityParams() {
   const handleJSONChange = (e, fieldName) => {
     const value = e.target.value;
     setFormData({ ...formData, [fieldName]: value });
-    const validation = validateJSON(value, fieldName);
+    const validation = validateJSON(value);
     setJsonErrors((prev) => ({
       ...prev,
       [fieldName]: validation.valid ? null : validation.error,
@@ -80,18 +80,9 @@ function ManageActivityParams() {
     setError(null);
 
     // Validar todos os JSONs
-    const levelParamsValidation = validateJSON(
-      formData.level_params,
-      'level_params'
-    );
-    const levelDownValidation = validateJSON(
-      formData.level_down_params,
-      'level_down_params'
-    );
-    const levelUpValidation = validateJSON(
-      formData.level_up_params,
-      'level_up_params'
-    );
+    const levelParamsValidation = validateJSON(formData.level_params);
+    const levelDownValidation = validateJSON(formData.level_down_params);
+    const levelUpValidation = validateJSON(formData.level_up_params);
 
     if (
       !levelParamsValidation.valid ||
@@ -195,7 +186,6 @@ function ManageActivityParams() {
         <button
           onClick={() => {
             setShowForm(true);
-            setEditingId(null);
             resetForm();
           }}
           className="px-4 py-2 bg-[#E6A8D7] text-white rounded hover:bg-[#D997C7] transition-colors"
