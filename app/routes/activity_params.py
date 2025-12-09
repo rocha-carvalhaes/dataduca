@@ -26,16 +26,10 @@ class ActivityParamsCreate(BaseModel):
     activity_id: int
     level: int
     level_params: Dict[str, Any]  # JSONB com os parâmetros do nível
-    level_down_params: Optional[Dict[str, Any]] = None  # Parâmetros para descer de nível
+    level_down_params: Optional[Dict[str, Any]] = (
+        None  # Parâmetros para descer de nível
+    )
     level_up_params: Optional[Dict[str, Any]] = None  # Parâmetros para subir de nível
-
-
-class ActivityParamsUpdate(BaseModel):
-    activity_id: Optional[int] = None
-    level: Optional[int] = None
-    level_params: Optional[Dict[str, Any]] = None
-    level_down_params: Optional[Dict[str, Any]] = None
-    level_up_params: Optional[Dict[str, Any]] = None
 
 
 class ActivityParamsResponse(BaseModel):
@@ -213,12 +207,16 @@ async def create_activity_params(
                     params_data.activity_id,
                     params_data.level,
                     json.dumps(params_data.level_params),
-                    json.dumps(params_data.level_down_params)
-                    if params_data.level_down_params
-                    else None,
-                    json.dumps(params_data.level_up_params)
-                    if params_data.level_up_params
-                    else None,
+                    (
+                        json.dumps(params_data.level_down_params)
+                        if params_data.level_down_params
+                        else None
+                    ),
+                    (
+                        json.dumps(params_data.level_up_params)
+                        if params_data.level_up_params
+                        else None
+                    ),
                 ),
             )
             new_params = cur.fetchone()
@@ -235,167 +233,6 @@ async def create_activity_params(
         logger.error(f"Erro ao criar parâmetros: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=500, detail=f"Erro ao criar parâmetros: {str(e)}"
-        )
-    finally:
-        if conn:
-            conn.close()
-
-
-@router.put("/{activity_param_id}", response_model=ActivityParamsResponse)
-async def update_activity_params(
-    activity_param_id: int,
-    params_data: ActivityParamsUpdate,
-    current_user: TokenData = Depends(get_current_user),
-):
-    """
-    Atualiza parâmetros de nível de atividade.
-    Seguindo SCD Tipo 2: inativa o registro atual e cria um novo.
-    """
-    conn = None
-    try:
-        conn = get_db_connection()
-        with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            # Buscar o registro atual
-            cur.execute(
-                """
-                SELECT
-                    activity_param_id,
-                    activity_id,
-                    level,
-                    level_params,
-                    level_down_params,
-                    level_up_params,
-                    active
-                FROM activity_params
-                WHERE activity_param_id = %s
-            """,
-                (activity_param_id,),
-            )
-            current_record = cur.fetchone()
-            if not current_record:
-                raise HTTPException(
-                    status_code=404, detail="Parâmetros não encontrados"
-                )
-
-            # Se estiver atualizando activity_id ou level, verificar se a atividade existe
-            new_activity_id = (
-                params_data.activity_id
-                if params_data.activity_id is not None
-                else current_record["activity_id"]
-            )
-            new_level = (
-                params_data.level
-                if params_data.level is not None
-                else current_record["level"]
-            )
-
-            if params_data.activity_id is not None:
-                cur.execute(
-                    "SELECT activity_id FROM activities WHERE activity_id = %s",
-                    (params_data.activity_id,),
-                )
-                if not cur.fetchone():
-                    raise HTTPException(
-                        status_code=404, detail="Atividade não encontrada"
-                    )
-
-            # Inativar o registro atual (SCD Tipo 2)
-            cur.execute(
-                """
-                UPDATE activity_params
-                SET active = FALSE, ended_at = NOW()
-                WHERE activity_param_id = %s
-            """,
-                (activity_param_id,),
-            )
-
-            # Se mudou activity_id ou level, inativar outros registros do novo nível
-            if (
-                params_data.activity_id is not None
-                or params_data.level is not None
-            ):
-                cur.execute(
-                    """
-                    UPDATE activity_params
-                    SET active = FALSE, ended_at = NOW()
-                    WHERE activity_id = %s
-                        AND level = %s
-                        AND active = TRUE
-                        AND activity_param_id != %s
-                """,
-                    (new_activity_id, new_level, activity_param_id),
-                )
-
-            # Criar novo registro com valores atualizados
-            # Se os valores vieram do banco, já estão como dict, então precisamos serializar
-            new_level_params = (
-                json.dumps(params_data.level_params)
-                if params_data.level_params is not None
-                else json.dumps(current_record["level_params"])
-            )
-            new_level_down_params = (
-                json.dumps(params_data.level_down_params)
-                if params_data.level_down_params is not None
-                else (
-                    json.dumps(current_record["level_down_params"])
-                    if current_record["level_down_params"] is not None
-                    else None
-                )
-            )
-            new_level_up_params = (
-                json.dumps(params_data.level_up_params)
-                if params_data.level_up_params is not None
-                else (
-                    json.dumps(current_record["level_up_params"])
-                    if current_record["level_up_params"] is not None
-                    else None
-                )
-            )
-
-            cur.execute(
-                """
-                INSERT INTO activity_params (
-                    activity_id,
-                    level,
-                    level_params,
-                    level_down_params,
-                    level_up_params,
-                    active
-                )
-                VALUES (%s, %s, %s, %s, %s, TRUE)
-                RETURNING
-                    activity_param_id,
-                    activity_id,
-                    level,
-                    level_params,
-                    level_down_params,
-                    level_up_params,
-                    created_at,
-                    ended_at,
-                    active
-            """,
-                (
-                    new_activity_id,
-                    new_level,
-                    new_level_params,
-                    new_level_down_params,
-                    new_level_up_params,
-                ),
-            )
-            updated_params = cur.fetchone()
-
-            conn.commit()
-            return dict(updated_params)
-    except HTTPException:
-        if conn:
-            conn.rollback()
-        raise
-    except Exception as e:
-        if conn:
-            conn.rollback()
-        logger.error(f"Erro ao atualizar parâmetros: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=500, detail=f"Erro ao atualizar parâmetros: {str(e)}"
         )
     finally:
         if conn:
@@ -458,4 +295,3 @@ async def delete_activity_params(
     finally:
         if conn:
             conn.close()
-

@@ -7,7 +7,6 @@ function ManageActivityParams() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showForm, setShowForm] = useState(false);
-  const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState({
     activity_id: '',
     level: '',
@@ -50,7 +49,11 @@ function ManageActivityParams() {
         return { valid: true, parsed: null };
       }
       const parsed = JSON.parse(jsonString);
-      if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+      if (
+        typeof parsed !== 'object' ||
+        parsed === null ||
+        Array.isArray(parsed)
+      ) {
         return {
           valid: false,
           error: 'JSON deve ser um objeto',
@@ -77,7 +80,10 @@ function ManageActivityParams() {
     setError(null);
 
     // Validar todos os JSONs
-    const levelParamsValidation = validateJSON(formData.level_params, 'level_params');
+    const levelParamsValidation = validateJSON(
+      formData.level_params,
+      'level_params'
+    );
     const levelDownValidation = validateJSON(
       formData.level_down_params,
       'level_down_params'
@@ -105,14 +111,9 @@ function ManageActivityParams() {
         level_up_params: levelUpValidation.parsed || null,
       };
 
-      if (editingId) {
-        await api.activityParams.update(editingId, payload);
-      } else {
-        await api.activityParams.create(payload);
-      }
+      await api.activityParams.create(payload);
 
       setShowForm(false);
-      setEditingId(null);
       resetForm();
       loadData();
     } catch (err) {
@@ -121,30 +122,8 @@ function ManageActivityParams() {
     }
   };
 
-  const handleEdit = (param) => {
-    setEditingId(param.activity_param_id);
-    setFormData({
-      activity_id: param.activity_id.toString(),
-      level: param.level.toString(),
-      level_params: JSON.stringify(param.level_params, null, 2),
-      level_down_params: param.level_down_params
-        ? JSON.stringify(param.level_down_params, null, 2)
-        : '',
-      level_up_params: param.level_up_params
-        ? JSON.stringify(param.level_up_params, null, 2)
-        : '',
-    });
-    setJsonErrors({
-      level_params: null,
-      level_down_params: null,
-      level_up_params: null,
-    });
-    setShowForm(true);
-  };
-
   const handleCancel = () => {
     setShowForm(false);
-    setEditingId(null);
     resetForm();
     setError(null);
     setJsonErrors({
@@ -228,7 +207,7 @@ function ManageActivityParams() {
       {showForm && (
         <div className="bg-white rounded-lg shadow border border-[#D9D9D9] p-6 mb-6">
           <h3 className="text-xl font-semibold text-[#333333] mb-4">
-            {editingId ? 'Editar Parâmetros' : 'Novos Parâmetros'}
+            Novos Parâmetros
           </h3>
           <form onSubmit={handleSubmit}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
@@ -367,7 +346,7 @@ function ManageActivityParams() {
                 type="submit"
                 className="px-4 py-2 bg-[#E6A8D7] text-white rounded hover:bg-[#D997C7] transition-colors"
               >
-                {editingId ? 'Atualizar' : 'Salvar'}
+                Salvar
               </button>
               <button
                 type="button"
@@ -410,16 +389,13 @@ function ManageActivityParams() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-[#6E6E6E] uppercase tracking-wider">
                   Status
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-[#6E6E6E] uppercase tracking-wider">
-                  Ações
-                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-[#D9D9D9]">
               {paramsList.length === 0 ? (
                 <tr>
                   <td
-                    colSpan="9"
+                    colSpan="8"
                     className="px-6 py-4 text-center text-[#6E6E6E]"
                   >
                     Nenhum parâmetro encontrado
@@ -427,7 +403,10 @@ function ManageActivityParams() {
                 </tr>
               ) : (
                 paramsList.map((param) => (
-                  <tr key={param.activity_param_id} className="hover:bg-gray-50">
+                  <tr
+                    key={param.activity_param_id}
+                    className="hover:bg-gray-50"
+                  >
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-[#333333]">
                       {param.activity_param_id}
                     </td>
@@ -624,27 +603,6 @@ function ManageActivityParams() {
                         {param.active ? 'Ativo' : 'Inativo'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <button
-                        onClick={() => handleEdit(param)}
-                        className="text-[#E6A8D7] hover:text-[#D89BC8] transition-colors"
-                        title="Editar"
-                      >
-                        <svg
-                          className="w-5 h-5"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                          />
-                        </svg>
-                      </button>
-                    </td>
                   </tr>
                 ))
               )}
@@ -657,5 +615,3 @@ function ManageActivityParams() {
 }
 
 export default ManageActivityParams;
-
-

@@ -104,11 +104,21 @@ async def get_unscramble_phrases_params(
     # Parâmetros padrão
     default_params = UnscramblePhrasesParams(
         phrases=[
-            "O gato está na casa",
-            "A menina brinca no parque",
-            "O sol brilha no céu",
-            "A árvore cresce no jardim",
-            "O livro está na mesa",
+            "O GATO DORME",
+            "A MENINA CORRE",
+            "O SOL BRILHA",
+            "A BOLA ROLA",
+            "O PÁSSARO VOA",
+            "A FLOR CRESCE",
+            "O CÃO LATE",
+            "A CHUVA CAI",
+            "O PEIXE NADA",
+            "A CRIANÇA RI",
+            "O VENTO SOPRA",
+            "A VACA MUJE",
+            "O SAPO PULA",
+            "A FOLHA CAI",
+            "O CARRO ANDA",
         ],
         phrases_per_session=5,
     )

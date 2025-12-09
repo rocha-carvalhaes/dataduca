@@ -71,7 +71,9 @@ function ManageUserActivityParams() {
       );
 
       if (!selectedActivityParam) {
-        setError('Parâmetro de nível não encontrado para a atividade e nível selecionados.');
+        setError(
+          'Parâmetro de nível não encontrado para a atividade e nível selecionados.'
+        );
         return;
       }
 
@@ -107,8 +109,7 @@ function ManageUserActivityParams() {
     if (!formData.activity_id) return [];
     return activityParams
       .filter(
-        (ap) =>
-          ap.activity_id === parseInt(formData.activity_id) && ap.active
+        (ap) => ap.activity_id === parseInt(formData.activity_id) && ap.active
       )
       .map((ap) => ap.level)
       .sort((a, b) => a - b);
@@ -150,7 +151,9 @@ function ManageUserActivityParams() {
     const activity = activities.find(
       (a) => a.activity_id === activityParam.activity_id
     );
-    return activity ? activity.activity_name : `ID: ${activityParam.activity_id}`;
+    return activity
+      ? activity.activity_name
+      : `ID: ${activityParam.activity_id}`;
   };
 
   if (loading) {
@@ -249,7 +252,10 @@ function ManageUserActivityParams() {
                 >
                   <option value="">Selecione uma atividade</option>
                   {activities.map((activity) => (
-                    <option key={activity.activity_id} value={activity.activity_id}>
+                    <option
+                      key={activity.activity_id}
+                      value={activity.activity_id}
+                    >
                       {activity.activity_name}
                     </option>
                   ))}

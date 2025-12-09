@@ -23,7 +23,9 @@ def is_admin_or_professor(user_type: str) -> bool:
 
 class UserActivityParamsCreate(BaseModel):
     activity_param_id: int
-    activity_id: Optional[int] = None  # Opcional: usado para inativar todos os parâmetros da mesma atividade
+    activity_id: Optional[int] = (
+        None  # Opcional: usado para inativar todos os parâmetros da mesma atividade
+    )
     user_id: Optional[int] = None  # Opcional: se não fornecido, usa current_user
 
 
@@ -37,6 +39,43 @@ class UserActivityParamsResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+def _determine_user_id(
+    params_data: UserActivityParamsCreate,
+    current_user: TokenData,
+    cur,
+) -> int:
+    """Determina o user_id a ser usado baseado nas permissões do usuário"""
+    if params_data.user_id is not None:
+        if not is_admin_or_professor(current_user.user_type):
+            raise HTTPException(
+                status_code=403,
+                detail="Apenas administradores e professores podem criar parâmetros para outros usuários",
+            )
+        # Verificar se o usuário existe
+        cur.execute(
+            "SELECT user_id FROM users WHERE user_id = %s",
+            (params_data.user_id,),
+        )
+        if not cur.fetchone():
+            raise HTTPException(status_code=404, detail="Usuário não encontrado")
+        return params_data.user_id
+    return current_user.user_id
+
+
+def _get_activity_id_to_inactivate(
+    params_data: UserActivityParamsCreate, cur
+) -> Optional[int]:
+    """Busca o activity_id do parâmetro selecionado se não foi fornecido"""
+    if params_data.activity_id:
+        return params_data.activity_id
+    cur.execute(
+        "SELECT activity_id FROM activity_params WHERE activity_param_id = %s",
+        (params_data.activity_param_id,),
+    )
+    activity_param_result = cur.fetchone()
+    return activity_param_result["activity_id"] if activity_param_result else None
 
 
 @router.get("/", response_model=List[UserActivityParamsResponse])
@@ -172,37 +211,10 @@ async def create_user_activity_params(
                 )
 
             # Determinar o user_id a ser usado
-            # Administradores e professores podem criar para qualquer usuário
-            # Alunos só podem criar para si mesmos
-            if params_data.user_id is not None:
-                if not is_admin_or_professor(current_user.user_type):
-                    raise HTTPException(
-                        status_code=403,
-                        detail="Apenas administradores e professores podem criar parâmetros para outros usuários",
-                    )
-                # Verificar se o usuário existe
-                cur.execute(
-                    "SELECT user_id FROM users WHERE user_id = %s",
-                    (params_data.user_id,),
-                )
-                if not cur.fetchone():
-                    raise HTTPException(
-                        status_code=404, detail="Usuário não encontrado"
-                    )
-                user_id = params_data.user_id
-            else:
-                user_id = current_user.user_id
+            user_id = _determine_user_id(params_data, current_user, cur)
 
             # Buscar o activity_id do parâmetro selecionado se não foi fornecido
-            activity_id_to_inactivate = params_data.activity_id
-            if not activity_id_to_inactivate:
-                cur.execute(
-                    "SELECT activity_id FROM activity_params WHERE activity_param_id = %s",
-                    (params_data.activity_param_id,),
-                )
-                activity_param_result = cur.fetchone()
-                if activity_param_result:
-                    activity_id_to_inactivate = activity_param_result["activity_id"]
+            activity_id_to_inactivate = _get_activity_id_to_inactivate(params_data, cur)
 
             # Inativar todos os parâmetros anteriores do mesmo usuário e mesma atividade (SCD Tipo 2)
             # Isso garante que apenas um nível por atividade esteja ativo por usuário

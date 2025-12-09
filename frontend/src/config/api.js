@@ -231,7 +231,9 @@ export const api = {
       return api.request(`/api/user-activity-params/?${params.toString()}`);
     },
     async getCurrent(activityParamId) {
-      return api.request(`/api/user-activity-params/current/${activityParamId}`);
+      return api.request(
+        `/api/user-activity-params/current/${activityParamId}`
+      );
     },
     async create(data) {
       return api.request('/api/user-activity-params/', {
