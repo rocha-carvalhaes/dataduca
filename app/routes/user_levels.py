@@ -1,6 +1,7 @@
 """
 Endpoints para gerenciamento e atualização de níveis de usuários.
 """
+
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Optional
@@ -44,9 +45,7 @@ async def evaluate_user_level(  # noqa: C901
             current_user.user_type not in ["administrador", "professor"]
             and current_user.user_id != user_id
         ):
-            raise HTTPException(
-                403, "Você não tem permissão para avaliar este usuário"
-            )
+            raise HTTPException(403, "Você não tem permissão para avaliar este usuário")
 
         conn = get_db_connection()
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
@@ -88,9 +87,7 @@ async def evaluate_user_level(  # noqa: C901
             level_start_date = current_level_data["initiated_at"]
 
             if level_start_date:
-                logger.info(
-                    f"Nível atual iniciado em: {level_start_date}"
-                )
+                logger.info(f"Nível atual iniciado em: {level_start_date}")
 
             # Obter parâmetros de avaliação das colunas separadas
             def parse_json_field(field_value):
@@ -104,7 +101,9 @@ async def evaluate_user_level(  # noqa: C901
                 return {}
 
             level_up_params = parse_json_field(current_level_data["level_up_params"])
-            level_down_params = parse_json_field(current_level_data["level_down_params"])
+            level_down_params = parse_json_field(
+                current_level_data["level_down_params"]
+            )
 
             # Log para debug
             logger.info(
@@ -227,11 +226,7 @@ async def evaluate_user_level(  # noqa: C901
 
                 conn.commit()
 
-                action_msg = (
-                    "subiu"
-                    if evaluation["action"] == "level_up"
-                    else "desceu"
-                )
+                action_msg = "subiu" if evaluation["action"] == "level_up" else "desceu"
                 return LevelUpdateResponse(
                     user_id=user_id,
                     activity_id=activity_id,
@@ -276,9 +271,7 @@ async def evaluate_all_user_levels(
         current_user.user_type not in ["administrador", "professor"]
         and current_user.user_id != user_id
     ):
-        raise HTTPException(
-            403, "Você não tem permissão para avaliar este usuário"
-        )
+        raise HTTPException(403, "Você não tem permissão para avaliar este usuário")
 
     conn = None
     try:
