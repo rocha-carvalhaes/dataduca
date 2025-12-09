@@ -202,9 +202,17 @@ function UnscramblePhrases({ onBack, activityId }) {
   const handleGameEnd = useCallback(async () => {
     if (activitySessionId) {
       try {
+        // Buscar resultados atuais da sessão
+        const session = await api.activitySessions.get(activitySessionId);
+        const currentResults = session.results || {
+          phrases: [],
+          movement_history: {},
+        };
+
+        // Atualizar sessão com resultados finais e data de término
         await api.activitySessions.update(activitySessionId, {
+          results: currentResults,
           ended_at: new Date().toISOString(),
-          completed: true,
         });
         setGameCompleted(true);
       } catch (err) {

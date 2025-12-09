@@ -245,6 +245,18 @@ export const api = {
       return api.request(`/api/user-activity-params/${id}`);
     },
   },
+  userLevels: {
+    async evaluate(userId, activityId) {
+      return api.request(`/api/user-levels/evaluate/${userId}/${activityId}`, {
+        method: 'POST',
+      });
+    },
+    async evaluateAll(userId) {
+      return api.request(`/api/user-levels/evaluate-all/${userId}`, {
+        method: 'POST',
+      });
+    },
+  },
 };
 
 export default api;

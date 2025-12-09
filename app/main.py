@@ -11,6 +11,7 @@ from app.routes import (
     documents,
     user_activity_params,
     activity_params,
+    user_levels,
 )
 from app.core.config import settings
 
@@ -43,6 +44,7 @@ app.include_router(activity_sessions.router)
 app.include_router(documents.router)
 app.include_router(activity_params.router)
 app.include_router(user_activity_params.router)
+app.include_router(user_levels.router)
 
 # Define o endpoint raiz
 # Esse endpoint é usado para verificar se o servidor está funcionando

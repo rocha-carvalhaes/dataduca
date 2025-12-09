@@ -16,6 +16,8 @@ function ManageUserActivityParams() {
   const [error, setError] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
+  const [evaluating, setEvaluating] = useState(false);
+  const [evaluationResult, setEvaluationResult] = useState(null);
   const [formData, setFormData] = useState({
     user_id: '',
     activity_id: '',
@@ -121,6 +123,42 @@ function ManageUserActivityParams() {
     setError(null);
   };
 
+  const handleEvaluateLevel = async (userId, activityId) => {
+    try {
+      setEvaluating(true);
+      setError(null);
+      setEvaluationResult(null);
+      const result = await api.userLevels.evaluate(userId, activityId);
+      setEvaluationResult(result);
+      if (result.updated) {
+        // Recarregar dados para mostrar o novo nível
+        await loadData();
+      }
+    } catch (err) {
+      setError(err.message || 'Erro ao avaliar nível. Tente novamente.');
+      console.error(err);
+    } finally {
+      setEvaluating(false);
+    }
+  };
+
+  const handleEvaluateAllLevels = async (userId) => {
+    try {
+      setEvaluating(true);
+      setError(null);
+      setEvaluationResult(null);
+      const result = await api.userLevels.evaluateAll(userId);
+      setEvaluationResult(result);
+      // Recarregar dados
+      await loadData();
+    } catch (err) {
+      setError(err.message || 'Erro ao avaliar níveis. Tente novamente.');
+      console.error(err);
+    } finally {
+      setEvaluating(false);
+    }
+  };
+
   const formatDate = (dateString) => {
     if (!dateString) return '-';
     return new Date(dateString).toLocaleString('pt-BR');
@@ -129,6 +167,13 @@ function ManageUserActivityParams() {
   const getUserName = (userId) => {
     const user = users.find((u) => u.user_id === userId);
     return user ? user.user_name : `ID: ${userId}`;
+  };
+
+  const getActivityIdFromParam = (activityParamId) => {
+    const activityParam = activityParams.find(
+      (ap) => ap.activity_param_id === activityParamId
+    );
+    return activityParam ? activityParam.activity_id : null;
   };
 
   const getActivityLevel = (activityParamId) => {
@@ -172,16 +217,48 @@ function ManageUserActivityParams() {
         </div>
       )}
 
+      {evaluationResult && (
+        <div
+          className={`mb-4 p-4 border rounded ${
+            evaluationResult.updated
+              ? 'bg-green-50 border-green-200 text-green-700'
+              : 'bg-blue-50 border-blue-200 text-blue-700'
+          }`}
+        >
+          <p className="font-semibold">{evaluationResult.message}</p>
+          {evaluationResult.updated && (
+            <p className="text-sm mt-1">
+              Nível {evaluationResult.old_level} → {evaluationResult.new_level}
+            </p>
+          )}
+        </div>
+      )}
+
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-semibold text-[#333333]">
           Níveis de Atividades por Usuário
         </h2>
-        <button
-          onClick={() => setShowForm(true)}
-          className="px-4 py-2 bg-[#E6A8D7] text-white rounded hover:bg-[#D997C7] transition-colors"
-        >
-          + Adicionar Parâmetros
-        </button>
+        <div className="flex gap-4">
+          {isAdminOrProfessor(currentUser?.user_type) && currentUser?.user_id && (
+            <button
+              onClick={() => handleEvaluateAllLevels(currentUser.user_id)}
+              className={`px-4 py-2 rounded transition-colors ${
+                evaluating
+                  ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
+              }`}
+              disabled={evaluating}
+            >
+              {evaluating ? 'Avaliando...' : 'Atualizar Todos os Níveis'}
+            </button>
+          )}
+          <button
+            onClick={() => setShowForm(true)}
+            className="px-4 py-2 bg-[#E6A8D7] text-white rounded hover:bg-[#D997C7] transition-colors"
+          >
+            + Adicionar Parâmetros
+          </button>
+        </div>
       </div>
 
       {showForm && (
@@ -345,13 +422,16 @@ function ManageUserActivityParams() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-[#6E6E6E] uppercase tracking-wider">
                   Status
                 </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-[#6E6E6E] uppercase tracking-wider">
+                  Ações
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-[#D9D9D9]">
               {paramsList.length === 0 ? (
                 <tr>
                   <td
-                    colSpan="7"
+                    colSpan="8"
                     className="px-6 py-4 text-center text-[#6E6E6E]"
                   >
                     Nenhum parâmetro encontrado
@@ -391,6 +471,25 @@ function ManageUserActivityParams() {
                       >
                         {param.active ? 'Ativo' : 'Inativo'}
                       </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      {param.active && (
+                        <button
+                          onClick={() => {
+                            const activityId = getActivityIdFromParam(
+                              param.activity_param_id
+                            );
+                            if (activityId) {
+                              handleEvaluateLevel(param.user_id, activityId);
+                            }
+                          }}
+                          disabled={evaluating}
+                          className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-xs"
+                          title="Avaliar e atualizar nível"
+                        >
+                          {evaluating ? '...' : 'Atualizar'}
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))
