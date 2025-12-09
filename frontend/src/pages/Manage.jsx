@@ -88,7 +88,7 @@ function Manage() {
     },
     {
       id: 'activity-params',
-      label: 'Parâmetros de Níveis',
+      label: 'Níveis de Atividades',
       icon: (
         <svg
           className="w-5 h-5"
@@ -107,7 +107,7 @@ function Manage() {
     },
     {
       id: 'user-activity-params',
-      label: 'Parâmetros por Usuário',
+      label: 'Níveis por Usuário',
       icon: (
         <svg
           className="w-5 h-5"

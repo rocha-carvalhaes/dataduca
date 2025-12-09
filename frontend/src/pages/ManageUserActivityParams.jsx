@@ -171,7 +171,7 @@ function ManageUserActivityParams() {
 
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-semibold text-[#333333]">
-          Parâmetros de Atividade por Usuário
+          Níveis de Atividades por Usuário
         </h2>
         <button
           onClick={() => setShowForm(true)}
