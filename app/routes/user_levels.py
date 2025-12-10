@@ -11,6 +11,7 @@ import json
 
 from app.routes.auth import get_current_user, TokenData, get_db_connection
 from app.core.level_evaluator import LevelEvaluator
+from app.core.session_cache import reset_count
 
 logger = logging.getLogger(__name__)
 
@@ -225,6 +226,15 @@ async def evaluate_user_level(  # noqa: C901
                 )
 
                 conn.commit()
+
+                # Resetar cache de sessões quando o nível muda
+                # Isso garante que o contador reflita apenas sessões do novo nível
+                reset_count(user_id, activity_id)
+                logger.info(
+                    f"Cache de sessões resetado após mudança de nível: "
+                    f"user_id={user_id}, activity_id={activity_id}, "
+                    f"nível {current_level} -> {new_level}"
+                )
 
                 action_msg = "subiu" if evaluation["action"] == "level_up" else "desceu"
                 return LevelUpdateResponse(

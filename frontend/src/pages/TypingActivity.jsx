@@ -141,8 +141,58 @@ function TypingActivity({ onBack, activityId }) {
     }
   }, [totalBubbles, characters.length, speed, addCharacter, activityId]);
 
+  // Function to load parameters from API
+  const loadParams = useCallback(async () => {
+    try {
+      setLoading(true);
+      const params = await api.activities.getTypingParams(activityId);
+
+      // Validate data received from API
+      if (
+        !Array.isArray(params?.characters) ||
+        params.characters.length === 0
+      ) {
+        throw new Error('Invalid characters received from API');
+      }
+
+      if (typeof params?.speed !== 'number' || params.speed <= 0) {
+        throw new Error('Invalid speed received from API');
+      }
+
+      if (
+        typeof params?.total_bubbles !== 'number' ||
+        params.total_bubbles <= 0
+      ) {
+        throw new Error('Invalid total bubbles received from API');
+      }
+
+      setCharacters(params.characters);
+      setSpeed(params.speed);
+      setTotalBubbles(params.total_bubbles);
+      setError(null);
+
+      // Log only in development
+      if (import.meta.env.DEV) {
+        console.log('Parameters loaded:', params.characters, params.speed);
+      }
+    } catch (error) {
+      // Set error to display in UI
+      const errorMessage =
+        error.message ||
+        'Não foi possível carregar os parâmetros da atividade';
+      setError(errorMessage);
+
+      if (import.meta.env.DEV) {
+        console.error('Error loading parameters:', error);
+      }
+    } finally {
+      // Always update loading state
+      setLoading(false);
+    }
+  }, [activityId]);
+
   // Function to restart the game
-  const restartGame = useCallback(() => {
+  const restartGame = useCallback(async () => {
     setGameStarted(false);
     setBubbles([]);
     setGeneratedCharacters([]);
@@ -169,7 +219,10 @@ function TypingActivity({ onBack, activityId }) {
       cancelAnimationFrame(animationRef.current);
       animationRef.current = null;
     }
-  }, []);
+
+    // Recarregar parâmetros para pegar possíveis mudanças de nível
+    await loadParams();
+  }, [loadParams]);
 
   // Game end event
   const handleGameEnd = useCallback(async () => {
@@ -431,62 +484,14 @@ function TypingActivity({ onBack, activityId }) {
     };
   }, [speed, bubbles.length]);
 
-  // Load API parameters
+  // Load API parameters on mount
   useEffect(() => {
     // Protection against StrictMode double execution
     if (loadedRef.current) return;
     loadedRef.current = true;
 
-    const loadParams = async () => {
-      try {
-        const params = await api.activities.getTypingParams(activityId);
-
-        // Validate data received from API
-        if (
-          !Array.isArray(params?.characters) ||
-          params.characters.length === 0
-        ) {
-          throw new Error('Invalid characters received from API');
-        }
-
-        if (typeof params?.speed !== 'number' || params.speed <= 0) {
-          throw new Error('Invalid speed received from API');
-        }
-
-        if (
-          typeof params?.total_bubbles !== 'number' ||
-          params.total_bubbles <= 0
-        ) {
-          throw new Error('Invalid total bubbles received from API');
-        }
-
-        setCharacters(params.characters);
-        setSpeed(params.speed);
-        setTotalBubbles(params.total_bubbles);
-        setError(null);
-
-        // Log only in development
-        if (import.meta.env.DEV) {
-          console.log('Parameters loaded:', params.characters, params.speed);
-        }
-      } catch (error) {
-        // Set error to display in UI
-        const errorMessage =
-          error.message ||
-          'Não foi possível carregar os parâmetros da atividade';
-        setError(errorMessage);
-
-        if (import.meta.env.DEV) {
-          console.error('Error loading parameters:', error);
-        }
-      } finally {
-        // Always update loading state
-        setLoading(false);
-      }
-    };
-
     loadParams();
-  }, [activityId]);
+  }, [loadParams]);
 
   if (loading) {
     return (

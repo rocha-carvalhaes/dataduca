@@ -9,6 +9,8 @@ import logging
 import json
 from dotenv import load_dotenv
 from app.routes.auth import get_current_user, TokenData
+from app.core.session_cache import register_session, complete_session
+from app.routes.user_levels import evaluate_user_level
 
 # Carregar variáveis de ambiente
 load_dotenv()
@@ -135,6 +137,14 @@ async def create_activity_session(
             info = cur.fetchone()
 
             conn.commit()
+
+            # Registrar sessão no cache (SEM consultar o banco!)
+            register_session(
+                new_session["activity_session_id"],
+                current_user.user_id,  # Já temos do token
+                session_data.activity_id,  # Já temos do body
+            )
+
             result = dict(new_session)
             result["user_name"] = info["user_name"]
             result["activity_name"] = info["activity_name"]
@@ -154,7 +164,7 @@ async def create_activity_session(
 
 
 @router.put("/{activity_session_id}", response_model=ActivitySessionResponse)
-async def update_activity_session(
+async def update_activity_session(  # noqa: C901
     activity_session_id: int,
     session_data: ActivitySessionUpdate,
     current_user: TokenData = Depends(get_current_user),
@@ -165,9 +175,10 @@ async def update_activity_session(
         conn = get_db_connection()
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             # Verificar se a sessão existe e pertence ao usuário
+            # Também verificar se já estava finalizada antes
             cur.execute(
                 """
-                SELECT asess.activity_session_id, asess.user_session_id
+                SELECT asess.activity_session_id, asess.user_session_id, asess.ended_at
                 FROM activity_sessions asess
                 JOIN user_sessions us ON asess.user_session_id = us.user_session_id
                 WHERE asess.activity_session_id = %s AND us.user_id = %s
@@ -179,6 +190,9 @@ async def update_activity_session(
                 raise HTTPException(
                     status_code=404, detail="Sessão de atividade não encontrada"
                 )
+
+            # Verificar se a sessão já estava finalizada antes
+            was_already_finalized = session.get("ended_at") is not None
 
             # Atualizar a sessão com resultados e data de término
             update_query = "UPDATE activity_sessions SET results = %s"
@@ -199,6 +213,54 @@ async def update_activity_session(
 
             cur.execute(update_query, update_values)
             updated_session = cur.fetchone()
+
+            # Verificar se a sessão foi finalizada AGORA (não estava antes)
+            # Se ended_at estava None antes e agora não está None, a sessão foi finalizada
+            session_was_just_finalized = (
+                not was_already_finalized
+                and updated_session.get("ended_at") is not None
+            )
+
+            if session_was_just_finalized:
+                # Buscar do cache (SEM consultar o banco!)
+                session_info = complete_session(activity_session_id)
+
+                if session_info:
+                    user_id, activity_id, new_count = session_info
+                    logger.info(
+                        f"Sessão completada via cache: user_id={user_id}, "
+                        f"activity_id={activity_id}, total_completadas={new_count}"
+                    )
+
+                    # Se o total de sessões completadas for múltiplo de 3, disparar avaliação
+                    if new_count > 0 and new_count % 3 == 0:
+                        logger.info(
+                            f"Usuário {user_id} completou {new_count} sessões da atividade {activity_id} "
+                            f"(múltiplo de 3). Disparando avaliação de nível automaticamente."
+                        )
+                        try:
+                            # Chamar avaliação de nível de forma assíncrona
+                            # Usar o current_user para autenticação
+                            await evaluate_user_level(
+                                user_id=user_id,
+                                activity_id=activity_id,
+                                current_user=current_user,
+                            )
+                            logger.info(
+                                f"Avaliação de nível concluída para user_id={user_id}, "
+                                f"activity_id={activity_id}"
+                            )
+                        except Exception as e:
+                            # Não falhar a atualização da sessão se a avaliação der erro
+                            logger.error(
+                                f"Erro ao avaliar nível automaticamente: {str(e)}",
+                                exc_info=True,
+                            )
+                else:
+                    logger.warning(
+                        f"Sessão {activity_session_id} não encontrada no cache. "
+                        "Cache pode ter expirado ou sessão não foi registrada."
+                    )
 
             # Buscar informações adicionais para a resposta
             cur.execute(
