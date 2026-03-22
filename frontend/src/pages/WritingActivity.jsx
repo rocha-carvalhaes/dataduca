@@ -105,8 +105,6 @@ function WritingActivity({ onBack, activityId }) {
     // Se o usuário está adicionando caracteres
     if (newValue.length > previousValue.length) {
       const addedChars = newValue.slice(previousValue.length);
-      const timestamp = new Date().toISOString();
-
       // Adicionar cada caractere aos typed_keys
       addedChars.split('').forEach((char, index) => {
         const charIndex = previousValue.length + index;
@@ -188,10 +186,6 @@ function WritingActivity({ onBack, activityId }) {
   const handleGameEnd = useCallback(async () => {
     if (activitySessionId) {
       try {
-        // Buscar resultados atuais da sessão
-        const session = await api.activitySessions.get(activitySessionId);
-        const currentResults = session.results || { typed_keys: [] };
-
         // Atualizar sessão com resultados finais e data de término
         await api.activitySessions.update(activitySessionId, {
           results: {
@@ -275,7 +269,6 @@ function WritingActivity({ onBack, activityId }) {
   }
 
   const firstWrongIndex = getFirstWrongIndex();
-  const isAllCorrect = userInput === phrase;
 
   return (
     <div className="p-6">
@@ -303,7 +296,10 @@ function WritingActivity({ onBack, activityId }) {
 
         {/* Campo de digitação */}
         <div className="mb-6">
-          <label className="block text-sm font-medium text-[#333333] mb-2">
+          <label
+            htmlFor="user-typing-input"
+            className="block text-sm font-medium text-[#333333] mb-2"
+          >
             Sua digitação:
           </label>
           <div className="relative">
@@ -346,6 +342,7 @@ function WritingActivity({ onBack, activityId }) {
               </div>
             )}
             <textarea
+              id="user-typing-input"
               ref={inputRef}
               value={userInput}
               onChange={handleInputChange}
