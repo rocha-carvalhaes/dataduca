@@ -27,7 +27,8 @@ class UnscramblePhrasesParams(BaseModel):
 
 
 class WritingActivityParams(BaseModel):
-    phrase: str  # Frase a ser digitada
+    phrases: List[str]  # Lista de frases disponíveis
+    phrases_per_session: int  # Quantidade de frases por sessão
 
 
 @router.get("/typing/params", response_model=TypingActivityParams)
@@ -184,9 +185,20 @@ async def get_writing_params(
     Se o usuário tiver parâmetros personalizados para a atividade,
     retorna esses parâmetros. Caso contrário, retorna parâmetros padrão.
     """
-    # Parâmetros padrão
     default_params = WritingActivityParams(
-        phrase="Olá, mundo!",
+        phrases=[
+            "Olá, mundo!",
+            "O sol brilha no céu azul.",
+            "A menina lê um livro.",
+            "O gato dorme no sofá.",
+            "Eu gosto de estudar.",
+            "A chuva cai lá fora.",
+            "O pássaro canta na árvore.",
+            "Nós vamos ao parque.",
+            "Ela escreve uma carta.",
+            "O cachorro corre no jardim.",
+        ],
+        phrases_per_session=3,
     )
 
     # Se não houver activity_id, retorna padrão
@@ -218,7 +230,11 @@ async def get_writing_params(
                 params = result["level_params"]
                 # Validar e retornar parâmetros personalizados
                 return WritingActivityParams(
-                    phrase=params.get("phrase", default_params.phrase),
+                    phrases=params.get("phrases", default_params.phrases),
+                    phrases_per_session=params.get(
+                        "phrases_per_session",
+                        default_params.phrases_per_session,
+                    ),
                 )
     except Exception as e:
         logger.warning(
