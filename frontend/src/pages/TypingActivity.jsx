@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import api from '../config/api';
+import { LoadingState, BackButton } from '../components/ui';
 
 function TypingActivity({ onBack, activityId }) {
   const [characters, setCharacters] = useState([]);
@@ -178,8 +179,7 @@ function TypingActivity({ onBack, activityId }) {
     } catch (error) {
       // Set error to display in UI
       const errorMessage =
-        error.message ||
-        'Não foi possível carregar os parâmetros da atividade';
+        error.message || 'Não foi possível carregar os parâmetros da atividade';
       setError(errorMessage);
 
       if (import.meta.env.DEV) {
@@ -494,16 +494,7 @@ function TypingActivity({ onBack, activityId }) {
   }, [loadParams]);
 
   if (loading) {
-    return (
-      <div className="p-6">
-        <div className="flex items-center justify-center h-96">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E6A8D7] mx-auto mb-4"></div>
-            <p className="text-[#777777]">Carregando atividade...</p>
-          </div>
-        </div>
-      </div>
-    );
+    return <LoadingState message="Carregando atividade..." spinner />;
   }
 
   if (error) {
@@ -511,25 +502,7 @@ function TypingActivity({ onBack, activityId }) {
       <div className="p-6">
         <div className="mb-6 flex items-center justify-between">
           <div>
-            <button
-              onClick={onBack}
-              className="flex items-center gap-2 text-[#6E6E6E] hover:text-[#333333] transition-colors mb-2"
-            >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15 19l-7-7 7-7"
-                />
-              </svg>
-              Voltar
-            </button>
+            <BackButton onClick={onBack} />
             <h1 className="text-3xl font-bold text-[#333333] mb-2">
               Digitação com Bolhas
             </h1>
@@ -576,25 +549,7 @@ function TypingActivity({ onBack, activityId }) {
       {/* Header */}
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <button
-            onClick={onBack}
-            className="flex items-center gap-2 text-[#6E6E6E] hover:text-[#333333] transition-colors mb-2"
-          >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 19l-7-7 7-7"
-              />
-            </svg>
-            Voltar
-          </button>
+          <BackButton onClick={onBack} />
           <h1 className="text-3xl font-bold text-[#333333] mb-2">
             Digitação com Bolhas
           </h1>

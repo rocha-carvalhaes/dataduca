@@ -1,11 +1,29 @@
-import { useState, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import api from '../config/api';
+import { useFetch } from '../hooks/useFetch';
+import { formatDate } from '../utils/format';
+import {
+  LoadingState,
+  ErrorAlert,
+  Card,
+  FormField,
+  Select,
+} from '../components/ui';
 
 function ManageActivityParams() {
-  const [paramsList, setParamsList] = useState([]);
-  const [activities, setActivities] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const loadData = useCallback(async () => {
+    const [activitiesData, paramsData] = await Promise.all([
+      api.activities.list(),
+      api.activityParams.list(null, false),
+    ]);
+    return { activities: activitiesData, params: paramsData };
+  }, []);
+
+  const { data, loading, error, setError, refetch } = useFetch(loadData);
+
+  const activities = data?.activities || [];
+  const paramsList = data?.params || [];
+
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
     activity_id: '',
@@ -21,28 +39,6 @@ function ManageActivityParams() {
   });
   const [expandedRows, setExpandedRows] = useState(new Set());
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const [activitiesData, paramsData] = await Promise.all([
-        api.activities.list(),
-        api.activityParams.list(null, false),
-      ]);
-      setActivities(activitiesData);
-      setParamsList(paramsData);
-    } catch (err) {
-      setError(err.message || 'Erro ao carregar dados. Tente novamente.');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const validateJSON = (jsonString) => {
     try {
       if (!jsonString || jsonString.trim() === '') {
@@ -54,10 +50,7 @@ function ManageActivityParams() {
         parsed === null ||
         Array.isArray(parsed)
       ) {
-        return {
-          valid: false,
-          error: 'JSON deve ser um objeto',
-        };
+        return { valid: false, error: 'JSON deve ser um objeto' };
       }
       return { valid: true, parsed };
     } catch (e) {
@@ -79,7 +72,6 @@ function ManageActivityParams() {
     e.preventDefault();
     setError(null);
 
-    // Validar todos os JSONs
     const levelParamsValidation = validateJSON(formData.level_params);
     const levelDownValidation = validateJSON(formData.level_down_params);
     const levelUpValidation = validateJSON(formData.level_up_params);
@@ -103,10 +95,9 @@ function ManageActivityParams() {
       };
 
       await api.activityParams.create(payload);
-
       setShowForm(false);
       resetForm();
-      loadData();
+      refetch();
     } catch (err) {
       setError(err.message || 'Erro ao salvar parâmetros. Tente novamente.');
       console.error(err);
@@ -134,11 +125,6 @@ function ManageActivityParams() {
     });
   };
 
-  const formatDate = (dateString) => {
-    if (!dateString) return '-';
-    return new Date(dateString).toLocaleString('pt-BR');
-  };
-
   const getActivityName = (activityId) => {
     const activity = activities.find((a) => a.activity_id === activityId);
     return activity ? activity.activity_name : `ID: ${activityId}`;
@@ -163,21 +149,53 @@ function ManageActivityParams() {
     return jsonString;
   };
 
-  if (loading) {
+  const ChevronIcon = ({ expanded }) => (
+    <svg
+      className="w-4 h-4"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d={expanded ? 'M5 15l7-7 7 7' : 'M19 9l-7 7-7-7'}
+      />
+    </svg>
+  );
+
+  const JsonCell = ({ jsonObj, expandKey }) => {
+    if (!jsonObj) return <span className="text-[#6E6E6E]">-</span>;
+
     return (
-      <div className="flex justify-center items-center py-12">
-        <div className="text-[#6E6E6E]">Carregando...</div>
+      <div className="flex items-start gap-2">
+        <button
+          onClick={() => toggleRowExpanded(expandKey)}
+          className="p-1 hover:bg-gray-200 rounded transition-colors mt-1"
+        >
+          <ChevronIcon expanded={expandedRows.has(expandKey)} />
+        </button>
+        {expandedRows.has(expandKey) ? (
+          <pre className="bg-gray-50 p-2 rounded text-xs overflow-x-auto max-w-xs flex-1">
+            {JSON.stringify(jsonObj, null, 2)}
+          </pre>
+        ) : (
+          <span className="bg-gray-50 p-2 rounded text-xs text-[#6E6E6E] max-w-xs flex-1">
+            {getJsonPreview(jsonObj)}
+          </span>
+        )}
       </div>
     );
+  };
+
+  if (loading) {
+    return <LoadingState message="Carregando..." />;
   }
 
   return (
     <div>
-      {error && (
-        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded text-red-700">
-          {error}
-        </div>
-      )}
+      <ErrorAlert message={error} />
 
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-semibold text-[#333333]">
@@ -195,26 +213,19 @@ function ManageActivityParams() {
       </div>
 
       {showForm && (
-        <div className="bg-white rounded-lg shadow border border-[#D9D9D9] p-6 mb-6">
+        <Card className="mb-6">
           <h3 className="text-xl font-semibold text-[#333333] mb-4">
             Novos Parâmetros
           </h3>
           <form onSubmit={handleSubmit}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-              <div>
-                <label
-                  htmlFor="activity_id"
-                  className="block text-sm font-medium text-[#333333] mb-2"
-                >
-                  Atividade *
-                </label>
-                <select
+              <FormField label="Atividade *" id="activity_id">
+                <Select
                   id="activity_id"
                   value={formData.activity_id}
                   onChange={(e) =>
                     setFormData({ ...formData, activity_id: e.target.value })
                   }
-                  className="w-full px-3 py-2 border border-[#D9D9D9] rounded focus:outline-none focus:ring-2 focus:ring-[#E6A8D7]"
                   required
                 >
                   <option value="">Selecione uma atividade</option>
@@ -226,15 +237,9 @@ function ManageActivityParams() {
                       {activity.activity_name}
                     </option>
                   ))}
-                </select>
-              </div>
-              <div>
-                <label
-                  htmlFor="level"
-                  className="block text-sm font-medium text-[#333333] mb-2"
-                >
-                  Nível *
-                </label>
+                </Select>
+              </FormField>
+              <FormField label="Nível *" id="level">
                 <input
                   type="number"
                   id="level"
@@ -246,89 +251,79 @@ function ManageActivityParams() {
                   required
                   min="1"
                 />
-              </div>
+              </FormField>
             </div>
 
             <div className="mb-4">
-              <label
-                htmlFor="level_params"
-                className="block text-sm font-medium text-[#333333] mb-2"
-              >
-                Parâmetros do Nível (JSON) *
-              </label>
-              <textarea
-                id="level_params"
-                value={formData.level_params}
-                onChange={(e) => handleJSONChange(e, 'level_params')}
-                rows={8}
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-[#E6A8D7] font-mono text-sm ${
-                  jsonErrors.level_params
-                    ? 'border-red-300 bg-red-50'
-                    : 'border-[#D9D9D9]'
-                }`}
-                required
-              />
-              {jsonErrors.level_params && (
-                <p className="mt-1 text-sm text-red-600">
-                  {jsonErrors.level_params}
-                </p>
-              )}
+              <FormField label="Parâmetros do Nível (JSON) *" id="level_params">
+                <textarea
+                  id="level_params"
+                  value={formData.level_params}
+                  onChange={(e) => handleJSONChange(e, 'level_params')}
+                  rows={8}
+                  className={`w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-[#E6A8D7] font-mono text-sm ${
+                    jsonErrors.level_params
+                      ? 'border-red-300 bg-red-50'
+                      : 'border-[#D9D9D9]'
+                  }`}
+                  required
+                />
+                {jsonErrors.level_params && (
+                  <p className="mt-1 text-sm text-red-600">
+                    {jsonErrors.level_params}
+                  </p>
+                )}
+              </FormField>
             </div>
 
             <div className="mb-4">
-              <label
-                htmlFor="level_up_params"
-                className="block text-sm font-medium text-[#333333] mb-2"
-              >
-                Parâmetros para Subir de Nível (JSON) - Opcional
-              </label>
-              <textarea
+              <FormField
+                label="Parâmetros para Subir de Nível (JSON) - Opcional"
                 id="level_up_params"
-                value={formData.level_up_params}
-                onChange={(e) => handleJSONChange(e, 'level_up_params')}
-                rows={6}
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-[#E6A8D7] font-mono text-sm ${
-                  jsonErrors.level_up_params
-                    ? 'border-red-300 bg-red-50'
-                    : 'border-[#D9D9D9]'
-                }`}
-              />
-              {jsonErrors.level_up_params && (
-                <p className="mt-1 text-sm text-red-600">
-                  {jsonErrors.level_up_params}
-                </p>
-              )}
-              <p className="mt-1 text-xs text-[#6E6E6E]">
-                Condições que devem ser atendidas para o aluno subir de nível
-              </p>
+                hint="Condições que devem ser atendidas para o aluno subir de nível"
+              >
+                <textarea
+                  id="level_up_params"
+                  value={formData.level_up_params}
+                  onChange={(e) => handleJSONChange(e, 'level_up_params')}
+                  rows={6}
+                  className={`w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-[#E6A8D7] font-mono text-sm ${
+                    jsonErrors.level_up_params
+                      ? 'border-red-300 bg-red-50'
+                      : 'border-[#D9D9D9]'
+                  }`}
+                />
+                {jsonErrors.level_up_params && (
+                  <p className="mt-1 text-sm text-red-600">
+                    {jsonErrors.level_up_params}
+                  </p>
+                )}
+              </FormField>
             </div>
 
             <div className="mb-4">
-              <label
-                htmlFor="level_down_params"
-                className="block text-sm font-medium text-[#333333] mb-2"
-              >
-                Parâmetros para Descer de Nível (JSON) - Opcional
-              </label>
-              <textarea
+              <FormField
+                label="Parâmetros para Descer de Nível (JSON) - Opcional"
                 id="level_down_params"
-                value={formData.level_down_params}
-                onChange={(e) => handleJSONChange(e, 'level_down_params')}
-                rows={6}
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-[#E6A8D7] font-mono text-sm ${
-                  jsonErrors.level_down_params
-                    ? 'border-red-300 bg-red-50'
-                    : 'border-[#D9D9D9]'
-                }`}
-              />
-              {jsonErrors.level_down_params && (
-                <p className="mt-1 text-sm text-red-600">
-                  {jsonErrors.level_down_params}
-                </p>
-              )}
-              <p className="mt-1 text-xs text-[#6E6E6E]">
-                Condições que devem ser atendidas para o aluno descer de nível
-              </p>
+                hint="Condições que devem ser atendidas para o aluno descer de nível"
+              >
+                <textarea
+                  id="level_down_params"
+                  value={formData.level_down_params}
+                  onChange={(e) => handleJSONChange(e, 'level_down_params')}
+                  rows={6}
+                  className={`w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-[#E6A8D7] font-mono text-sm ${
+                    jsonErrors.level_down_params
+                      ? 'border-red-300 bg-red-50'
+                      : 'border-[#D9D9D9]'
+                  }`}
+                />
+                {jsonErrors.level_down_params && (
+                  <p className="mt-1 text-sm text-red-600">
+                    {jsonErrors.level_down_params}
+                  </p>
+                )}
+              </FormField>
             </div>
 
             <div className="flex gap-2">
@@ -347,7 +342,7 @@ function ManageActivityParams() {
               </button>
             </div>
           </form>
-        </div>
+        </Card>
       )}
 
       <div className="bg-white rounded-lg shadow border border-[#D9D9D9] overflow-hidden">
@@ -355,30 +350,23 @@ function ManageActivityParams() {
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-[#D9D9D9]">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-[#6E6E6E] uppercase tracking-wider">
-                  ID
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-[#6E6E6E] uppercase tracking-wider">
-                  Atividade
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-[#6E6E6E] uppercase tracking-wider">
-                  Nível
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-[#6E6E6E] uppercase tracking-wider">
-                  Parâmetros do Nível
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-[#6E6E6E] uppercase tracking-wider">
-                  Parâmetros Subir
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-[#6E6E6E] uppercase tracking-wider">
-                  Parâmetros Descer
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-[#6E6E6E] uppercase tracking-wider">
-                  Criado em
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-[#6E6E6E] uppercase tracking-wider">
-                  Status
-                </th>
+                {[
+                  'ID',
+                  'Atividade',
+                  'Nível',
+                  'Parâmetros do Nível',
+                  'Parâmetros Subir',
+                  'Parâmetros Descer',
+                  'Criado em',
+                  'Status',
+                ].map((label) => (
+                  <th
+                    key={label}
+                    className="px-6 py-3 text-left text-xs font-medium text-[#6E6E6E] uppercase tracking-wider"
+                  >
+                    {label}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-[#D9D9D9]">
@@ -407,177 +395,22 @@ function ManageActivityParams() {
                       {param.level}
                     </td>
                     <td className="px-6 py-4 text-sm text-[#333333]">
-                      <div className="flex items-start gap-2">
-                        <button
-                          onClick={() =>
-                            toggleRowExpanded(
-                              `level_params_${param.activity_param_id}`
-                            )
-                          }
-                          className="p-1 hover:bg-gray-200 rounded transition-colors mt-1"
-                        >
-                          {expandedRows.has(
-                            `level_params_${param.activity_param_id}`
-                          ) ? (
-                            <svg
-                              className="w-4 h-4"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M5 15l7-7 7 7"
-                              />
-                            </svg>
-                          ) : (
-                            <svg
-                              className="w-4 h-4"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M19 9l-7 7-7-7"
-                              />
-                            </svg>
-                          )}
-                        </button>
-                        {expandedRows.has(
-                          `level_params_${param.activity_param_id}`
-                        ) ? (
-                          <pre className="bg-gray-50 p-2 rounded text-xs overflow-x-auto max-w-xs flex-1">
-                            {JSON.stringify(param.level_params, null, 2)}
-                          </pre>
-                        ) : (
-                          <span className="bg-gray-50 p-2 rounded text-xs text-[#6E6E6E] max-w-xs flex-1">
-                            {getJsonPreview(param.level_params)}
-                          </span>
-                        )}
-                      </div>
+                      <JsonCell
+                        jsonObj={param.level_params}
+                        expandKey={`level_params_${param.activity_param_id}`}
+                      />
                     </td>
                     <td className="px-6 py-4 text-sm text-[#333333]">
-                      {param.level_up_params ? (
-                        <div className="flex items-start gap-2">
-                          <button
-                            onClick={() =>
-                              toggleRowExpanded(
-                                `level_up_${param.activity_param_id}`
-                              )
-                            }
-                            className="p-1 hover:bg-gray-200 rounded transition-colors mt-1"
-                          >
-                            {expandedRows.has(
-                              `level_up_${param.activity_param_id}`
-                            ) ? (
-                              <svg
-                                className="w-4 h-4"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M5 15l7-7 7 7"
-                                />
-                              </svg>
-                            ) : (
-                              <svg
-                                className="w-4 h-4"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M19 9l-7 7-7-7"
-                                />
-                              </svg>
-                            )}
-                          </button>
-                          {expandedRows.has(
-                            `level_up_${param.activity_param_id}`
-                          ) ? (
-                            <pre className="bg-gray-50 p-2 rounded text-xs overflow-x-auto max-w-xs flex-1">
-                              {JSON.stringify(param.level_up_params, null, 2)}
-                            </pre>
-                          ) : (
-                            <span className="bg-gray-50 p-2 rounded text-xs text-[#6E6E6E] max-w-xs flex-1">
-                              {getJsonPreview(param.level_up_params)}
-                            </span>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-[#6E6E6E]">-</span>
-                      )}
+                      <JsonCell
+                        jsonObj={param.level_up_params}
+                        expandKey={`level_up_${param.activity_param_id}`}
+                      />
                     </td>
                     <td className="px-6 py-4 text-sm text-[#333333]">
-                      {param.level_down_params ? (
-                        <div className="flex items-start gap-2">
-                          <button
-                            onClick={() =>
-                              toggleRowExpanded(
-                                `level_down_${param.activity_param_id}`
-                              )
-                            }
-                            className="p-1 hover:bg-gray-200 rounded transition-colors mt-1"
-                          >
-                            {expandedRows.has(
-                              `level_down_${param.activity_param_id}`
-                            ) ? (
-                              <svg
-                                className="w-4 h-4"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M5 15l7-7 7 7"
-                                />
-                              </svg>
-                            ) : (
-                              <svg
-                                className="w-4 h-4"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M19 9l-7 7-7-7"
-                                />
-                              </svg>
-                            )}
-                          </button>
-                          {expandedRows.has(
-                            `level_down_${param.activity_param_id}`
-                          ) ? (
-                            <pre className="bg-gray-50 p-2 rounded text-xs overflow-x-auto max-w-xs flex-1">
-                              {JSON.stringify(param.level_down_params, null, 2)}
-                            </pre>
-                          ) : (
-                            <span className="bg-gray-50 p-2 rounded text-xs text-[#6E6E6E] max-w-xs flex-1">
-                              {getJsonPreview(param.level_down_params)}
-                            </span>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-[#6E6E6E]">-</span>
-                      )}
+                      <JsonCell
+                        jsonObj={param.level_down_params}
+                        expandKey={`level_down_${param.activity_param_id}`}
+                      />
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-[#333333]">
                       {formatDate(param.created_at)}

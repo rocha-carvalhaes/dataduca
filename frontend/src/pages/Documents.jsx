@@ -1,41 +1,26 @@
-import { useState, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import api from '../config/api';
+import { useFetch } from '../hooks/useFetch';
+import { formatDate, confirmAction } from '../utils/format';
+import { ErrorAlert, LoadingState, AddButton } from '../components/ui';
 
 function Documents() {
-  const [documents, setDocuments] = useState([]);
+  const loadDocuments = useCallback(() => api.documents.list(), []);
+  const {
+    data: documents,
+    loading,
+    error,
+    setError,
+    refetch,
+  } = useFetch(loadDocuments);
+
   const [selectedDocument, setSelectedDocument] = useState(null);
   const [documentName, setDocumentName] = useState('');
   const [content, setContent] = useState('');
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(null);
   const [isNewDocument, setIsNewDocument] = useState(false);
   const [isPreviewMode, setIsPreviewMode] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
-
-  useEffect(() => {
-    loadDocuments();
-  }, []);
-
-  useEffect(() => {
-    if (selectedDocument) {
-      loadDocumentContent(selectedDocument.document_id);
-    }
-  }, [selectedDocument]);
-
-  const loadDocuments = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await api.documents.list();
-      setDocuments(data);
-    } catch (err) {
-      setError(err.message || 'Erro ao carregar documentos. Tente novamente.');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const loadDocumentContent = async (documentId) => {
     try {
@@ -44,7 +29,7 @@ function Documents() {
       setContent(doc.document_content);
       setDocumentName(doc.document_name);
       setIsNewDocument(false);
-      setIsPreviewMode(true); // Exibir markdown renderizado por padrão ao carregar
+      setIsPreviewMode(true);
     } catch (err) {
       setError(err.message || 'Erro ao carregar documento. Tente novamente.');
       console.error(err);
@@ -65,8 +50,9 @@ function Documents() {
     setSelectedDocument(doc);
     setDocumentName(doc.document_name);
     setIsNewDocument(false);
-    setIsPreviewMode(true); // Exibir markdown renderizado por padrão
+    setIsPreviewMode(true);
     setIsEditingName(false);
+    loadDocumentContent(doc.document_id);
   };
 
   const handleSave = async () => {
@@ -74,7 +60,6 @@ function Documents() {
       setError('O documento não pode estar vazio.');
       return;
     }
-
     if (!documentName.trim()) {
       setError('O nome do documento não pode estar vazio.');
       return;
@@ -97,12 +82,10 @@ function Documents() {
         });
       }
 
-      await loadDocuments();
+      await refetch();
       if (!isNewDocument) {
-        // Recarregar o documento atualizado
         await loadDocumentContent(selectedDocument.document_id);
       } else {
-        // Selecionar o novo documento criado
         const updated = await api.documents.list();
         if (updated.length > 0) {
           setSelectedDocument(updated[0]);
@@ -118,14 +101,14 @@ function Documents() {
   };
 
   const handleDelete = async (documentId) => {
-    if (!window.confirm('Tem certeza que deseja deletar este documento?')) {
+    if (!confirmAction('Tem certeza que deseja deletar este documento?')) {
       return;
     }
 
     try {
       setError(null);
       await api.documents.delete(documentId);
-      await loadDocuments();
+      await refetch();
 
       if (selectedDocument && selectedDocument.document_id === documentId) {
         setSelectedDocument(null);
@@ -137,19 +120,11 @@ function Documents() {
     }
   };
 
-  const formatDate = (dateString) => {
-    if (!dateString) return '-';
-    return new Date(dateString).toLocaleString('pt-BR');
-  };
-
-  // Função para renderizar markdown básico
   const renderMarkdown = (text) => {
     if (!text) return '';
 
-    // Dividir em linhas para processar títulos
     const lines = text.split('\n');
     const processedLines = lines.map((line) => {
-      // Processar títulos (devem estar no início da linha)
       if (line.match(/^######\s+(.+)$/)) {
         return line.replace(/^######\s+(.+)$/, '<h6>$1</h6>');
       } else if (line.match(/^#####\s+(.+)$/)) {
@@ -166,42 +141,31 @@ function Documents() {
       return line;
     });
 
-    // Juntar linhas e processar outras formatações
     let html = processedLines.join('\n');
 
-    // Processar formatações apenas em linhas que não são títulos
     html = html
       .split('\n')
       .map((line) => {
-        // Se a linha já é um título, retornar como está
         if (line.match(/^<h[1-6]>/)) {
           return line;
         }
-        // Caso contrário, processar formatações
-        return (
-          line
-            // Negrito: **texto** ou __texto__
-            .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-            .replace(/__(.+?)__/g, '<strong>$1</strong>')
-            // Itálico: *texto* ou _texto_
-            .replace(/\*(.+?)\*/g, '<em>$1</em>')
-            .replace(/_(.+?)_/g, '<em>$1</em>')
-        );
+        return line
+          .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+          .replace(/__(.+?)__/g, '<strong>$1</strong>')
+          .replace(/\*(.+?)\*/g, '<em>$1</em>')
+          .replace(/_(.+?)_/g, '<em>$1</em>');
       })
       .join('\n');
 
-    // Converter quebras de linha em <br /> (exceto após títulos)
     html = html.replace(/\n/g, '<br />');
 
     return html;
   };
 
+  const docsList = documents || [];
+
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-[#6E6E6E]">Carregando documentos...</div>
-      </div>
-    );
+    return <LoadingState message="Carregando documentos..." />;
   }
 
   return (
@@ -215,32 +179,10 @@ function Documents() {
             Crie e edite documentos usando Markdown
           </p>
         </div>
-        <button
-          onClick={handleNewDocument}
-          className="bg-[#E6A8D7] text-white px-6 py-2 rounded-lg hover:bg-[#D89BC8] transition-colors font-medium flex items-center gap-2"
-        >
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 4v16m8-8H4"
-            />
-          </svg>
-          Novo Documento
-        </button>
+        <AddButton onClick={handleNewDocument}>Novo Documento</AddButton>
       </div>
 
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
-          {error}
-        </div>
-      )}
+      <ErrorAlert message={error} />
 
       <div
         className="grid grid-cols-1 lg:grid-cols-3 gap-6"
@@ -375,7 +317,6 @@ function Documents() {
 
             <div className="flex-1 overflow-hidden" style={{ minHeight: 0 }}>
               {isPreviewMode ? (
-                // Modo Preview
                 <div
                   className="h-full p-4 overflow-y-auto text-sm prose prose-sm max-w-none"
                   style={{
@@ -384,48 +325,14 @@ function Documents() {
                   }}
                 >
                   <style>{`
-                    .markdown-preview h1 {
-                      font-size: 2em;
-                      font-weight: bold;
-                      margin-top: 0.67em;
-                      margin-bottom: 0.67em;
-                    }
-                    .markdown-preview h2 {
-                      font-size: 1.5em;
-                      font-weight: bold;
-                      margin-top: 0.75em;
-                      margin-bottom: 0.75em;
-                    }
-                    .markdown-preview h3 {
-                      font-size: 1.17em;
-                      font-weight: bold;
-                      margin-top: 0.83em;
-                      margin-bottom: 0.83em;
-                    }
-                    .markdown-preview h4 {
-                      font-size: 1em;
-                      font-weight: bold;
-                      margin-top: 1em;
-                      margin-bottom: 1em;
-                    }
-                    .markdown-preview h5 {
-                      font-size: 0.83em;
-                      font-weight: bold;
-                      margin-top: 1.17em;
-                      margin-bottom: 1.17em;
-                    }
-                    .markdown-preview h6 {
-                      font-size: 0.67em;
-                      font-weight: bold;
-                      margin-top: 1.33em;
-                      margin-bottom: 1.33em;
-                    }
-                    .markdown-preview strong {
-                      font-weight: bold;
-                    }
-                    .markdown-preview em {
-                      font-style: italic;
-                    }
+                    .markdown-preview h1 { font-size: 2em; font-weight: bold; margin-top: 0.67em; margin-bottom: 0.67em; }
+                    .markdown-preview h2 { font-size: 1.5em; font-weight: bold; margin-top: 0.75em; margin-bottom: 0.75em; }
+                    .markdown-preview h3 { font-size: 1.17em; font-weight: bold; margin-top: 0.83em; margin-bottom: 0.83em; }
+                    .markdown-preview h4 { font-size: 1em; font-weight: bold; margin-top: 1em; margin-bottom: 1em; }
+                    .markdown-preview h5 { font-size: 0.83em; font-weight: bold; margin-top: 1.17em; margin-bottom: 1.17em; }
+                    .markdown-preview h6 { font-size: 0.67em; font-weight: bold; margin-top: 1.33em; margin-bottom: 1.33em; }
+                    .markdown-preview strong { font-weight: bold; }
+                    .markdown-preview em { font-style: italic; }
                   `}</style>
                   <div
                     className="markdown-preview"
@@ -435,7 +342,6 @@ function Documents() {
                   />
                 </div>
               ) : (
-                // Modo Editor
                 <div
                   className="h-full overflow-hidden"
                   style={{
@@ -448,10 +354,8 @@ function Documents() {
                     value={content}
                     onChange={(e) => setContent(e.target.value)}
                     onKeyDown={(e) => {
-                      // Prevenir comportamento padrão do Enter que causa expansão
                       if (e.key === 'Enter') {
                         e.preventDefault();
-                        // Adicionar quebra de linha manualmente na posição do cursor
                         const textarea = e.target;
                         const start = textarea.selectionStart;
                         const end = textarea.selectionEnd;
@@ -460,7 +364,6 @@ function Documents() {
                           '\n' +
                           content.substring(end);
                         setContent(newContent);
-                        // Restaurar posição do cursor após a quebra de linha
                         setTimeout(() => {
                           textarea.selectionStart = textarea.selectionEnd =
                             start + 1;
@@ -551,13 +454,13 @@ function Documents() {
               <h2 className="font-semibold text-[#333333]">Documentos</h2>
             </div>
             <div className="flex-1 overflow-y-auto">
-              {documents.length === 0 ? (
+              {docsList.length === 0 ? (
                 <div className="p-6 text-center text-[#6E6E6E]">
                   Nenhum documento encontrado
                 </div>
               ) : (
                 <div className="divide-y divide-[#D9D9D9]">
-                  {documents.map((doc) => (
+                  {docsList.map((doc) => (
                     <div
                       key={doc.document_id}
                       onClick={() => handleSelectDocument(doc)}

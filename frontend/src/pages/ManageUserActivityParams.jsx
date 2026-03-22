@@ -1,23 +1,25 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import api from '../config/api';
 import { authStorage } from '../utils/auth';
+import { useFetch } from '../hooks/useFetch';
+import { formatDate } from '../utils/format';
+import {
+  LoadingState,
+  ErrorAlert,
+  Card,
+  FormField,
+  Select,
+} from '../components/ui';
 
-// Helper function para verificar se o usuário tem permissões administrativas
 const isAdminOrProfessor = (userType) => {
   return userType === 'professor' || userType === 'administrador';
 };
 
 function ManageUserActivityParams() {
-  const [paramsList, setParamsList] = useState([]);
-  const [users, setUsers] = useState([]);
-  const [activities, setActivities] = useState([]);
-  const [activityParams, setActivityParams] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [showForm, setShowForm] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [evaluating, setEvaluating] = useState(false);
   const [evaluationResult, setEvaluationResult] = useState(null);
+  const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
     user_id: '',
     activity_id: '',
@@ -33,38 +35,36 @@ function ManageUserActivityParams() {
         user_id: user.user_id.toString(),
       }));
     }
-    loadData();
   }, []);
 
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const [usersData, activitiesData, activityParamsData, paramsData] =
-        await Promise.all([
-          api.users.list(),
-          api.activities.list(),
-          api.activityParams.list(null, false),
-          api.userActivityParams.list(null, null, false),
-        ]);
-      setUsers(usersData);
-      setActivities(activitiesData);
-      setActivityParams(activityParamsData);
-      setParamsList(paramsData);
-    } catch (err) {
-      setError(err.message || 'Erro ao carregar dados. Tente novamente.');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const loadData = useCallback(async () => {
+    const [usersData, activitiesData, activityParamsData, paramsData] =
+      await Promise.all([
+        api.users.list(),
+        api.activities.list(),
+        api.activityParams.list(null, false),
+        api.userActivityParams.list(null, null, false),
+      ]);
+    return {
+      users: usersData,
+      activities: activitiesData,
+      activityParams: activityParamsData,
+      paramsList: paramsData,
+    };
+  }, []);
+
+  const { data, loading, error, setError, refetch } = useFetch(loadData);
+
+  const users = data?.users || [];
+  const activities = data?.activities || [];
+  const activityParams = data?.activityParams || [];
+  const paramsList = data?.paramsList || [];
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
 
     try {
-      // Buscar o activity_param_id correspondente à atividade e nível selecionados
       const selectedActivityParam = activityParams.find(
         (ap) =>
           ap.activity_id === parseInt(formData.activity_id) &&
@@ -83,15 +83,13 @@ function ManageUserActivityParams() {
         activity_param_id: selectedActivityParam.activity_param_id,
         activity_id: parseInt(formData.activity_id),
       };
-      // Se for administrador/professor e selecionou um usuário, incluir user_id
-      // Se for aluno, não enviar user_id (backend usa current_user)
       if (isAdminOrProfessor(currentUser?.user_type) && formData.user_id) {
         payload.user_id = parseInt(formData.user_id);
       }
       await api.userActivityParams.create(payload);
       setShowForm(false);
       resetForm();
-      loadData();
+      refetch();
     } catch (err) {
       setError(err.message || 'Erro ao salvar parâmetros. Tente novamente.');
       console.error(err);
@@ -99,14 +97,9 @@ function ManageUserActivityParams() {
   };
 
   const resetForm = () => {
-    setFormData({
-      user_id: '',
-      activity_id: '',
-      level: '',
-    });
+    setFormData({ user_id: '', activity_id: '', level: '' });
   };
 
-  // Filtrar níveis disponíveis para a atividade selecionada
   const getAvailableLevels = () => {
     if (!formData.activity_id) return [];
     return activityParams
@@ -131,8 +124,7 @@ function ManageUserActivityParams() {
       const result = await api.userLevels.evaluate(userId, activityId);
       setEvaluationResult(result);
       if (result.updated) {
-        // Recarregar dados para mostrar o novo nível
-        await loadData();
+        await refetch();
       }
     } catch (err) {
       setError(err.message || 'Erro ao avaliar nível. Tente novamente.');
@@ -149,19 +141,13 @@ function ManageUserActivityParams() {
       setEvaluationResult(null);
       const result = await api.userLevels.evaluateAll(userId);
       setEvaluationResult(result);
-      // Recarregar dados
-      await loadData();
+      await refetch();
     } catch (err) {
       setError(err.message || 'Erro ao avaliar níveis. Tente novamente.');
       console.error(err);
     } finally {
       setEvaluating(false);
     }
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return '-';
-    return new Date(dateString).toLocaleString('pt-BR');
   };
 
   const getUserName = (userId) => {
@@ -180,19 +166,14 @@ function ManageUserActivityParams() {
     const activityParam = activityParams.find(
       (ap) => ap.activity_param_id === activityParamId
     );
-    if (!activityParam) {
-      return '-';
-    }
-    return activityParam.level;
+    return activityParam ? activityParam.level : '-';
   };
 
   const getActivityName = (activityParamId) => {
     const activityParam = activityParams.find(
       (ap) => ap.activity_param_id === activityParamId
     );
-    if (!activityParam) {
-      return '-';
-    }
+    if (!activityParam) return '-';
     const activity = activities.find(
       (a) => a.activity_id === activityParam.activity_id
     );
@@ -202,20 +183,12 @@ function ManageUserActivityParams() {
   };
 
   if (loading) {
-    return (
-      <div className="flex justify-center items-center py-12">
-        <div className="text-[#6E6E6E]">Carregando...</div>
-      </div>
-    );
+    return <LoadingState message="Carregando..." />;
   }
 
   return (
     <div>
-      {error && (
-        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded text-red-700">
-          {error}
-        </div>
-      )}
+      <ErrorAlert message={error} />
 
       {evaluationResult && (
         <div
@@ -263,27 +236,22 @@ function ManageUserActivityParams() {
       </div>
 
       {showForm && (
-        <div className="bg-white rounded-lg shadow border border-[#D9D9D9] p-6 mb-6">
+        <Card className="mb-6">
           <h3 className="text-xl font-semibold text-[#333333] mb-4">
             Novos Parâmetros
           </h3>
           <form onSubmit={handleSubmit}>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-              <div>
-                <label
-                  htmlFor="user_id"
-                  className="block text-sm font-medium text-[#333333] mb-2"
-                >
-                  Usuário{' '}
-                  {isAdminOrProfessor(currentUser?.user_type) ? '*' : '(você)'}
-                </label>
-                <select
+              <FormField
+                label={`Usuário ${isAdminOrProfessor(currentUser?.user_type) ? '*' : '(você)'}`}
+                id="user_id"
+              >
+                <Select
                   id="user_id"
                   value={formData.user_id}
                   onChange={(e) =>
                     setFormData({ ...formData, user_id: e.target.value })
                   }
-                  className="w-full px-3 py-2 border border-[#D9D9D9] rounded focus:outline-none focus:ring-2 focus:ring-[#E6A8D7]"
                   required={isAdminOrProfessor(currentUser?.user_type)}
                   disabled={!isAdminOrProfessor(currentUser?.user_type)}
                 >
@@ -301,31 +269,24 @@ function ManageUserActivityParams() {
                       ))}
                     </>
                   )}
-                </select>
+                </Select>
                 {!isAdminOrProfessor(currentUser?.user_type) && (
                   <p className="mt-1 text-xs text-[#6E6E6E]">
                     Alunos só podem criar parâmetros para si mesmos
                   </p>
                 )}
-              </div>
-              <div>
-                <label
-                  htmlFor="activity_id"
-                  className="block text-sm font-medium text-[#333333] mb-2"
-                >
-                  Atividade *
-                </label>
-                <select
+              </FormField>
+              <FormField label="Atividade *" id="activity_id">
+                <Select
                   id="activity_id"
                   value={formData.activity_id}
                   onChange={(e) =>
                     setFormData({
                       ...formData,
                       activity_id: e.target.value,
-                      level: '', // Reset level when activity changes
+                      level: '',
                     })
                   }
-                  className="w-full px-3 py-2 border border-[#D9D9D9] rounded focus:outline-none focus:ring-2 focus:ring-[#E6A8D7]"
                   required
                 >
                   <option value="">Selecione uma atividade</option>
@@ -337,25 +298,15 @@ function ManageUserActivityParams() {
                       {activity.activity_name}
                     </option>
                   ))}
-                </select>
-              </div>
-              <div>
-                <label
-                  htmlFor="level"
-                  className="block text-sm font-medium text-[#333333] mb-2"
-                >
-                  Nível *
-                </label>
-                <select
+                </Select>
+              </FormField>
+              <FormField label="Nível *" id="level">
+                <Select
                   id="level"
                   value={formData.level}
                   onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      level: e.target.value,
-                    })
+                    setFormData({ ...formData, level: e.target.value })
                   }
-                  className="w-full px-3 py-2 border border-[#D9D9D9] rounded focus:outline-none focus:ring-2 focus:ring-[#E6A8D7]"
                   required
                   disabled={!formData.activity_id}
                 >
@@ -369,13 +320,13 @@ function ManageUserActivityParams() {
                       Nível {level}
                     </option>
                   ))}
-                </select>
+                </Select>
                 {!formData.activity_id && (
                   <p className="mt-1 text-xs text-[#6E6E6E]">
                     Selecione uma atividade primeiro
                   </p>
                 )}
-              </div>
+              </FormField>
             </div>
 
             <div className="flex gap-2">
@@ -394,7 +345,7 @@ function ManageUserActivityParams() {
               </button>
             </div>
           </form>
-        </div>
+        </Card>
       )}
 
       <div className="bg-white rounded-lg shadow border border-[#D9D9D9] overflow-hidden">
@@ -402,30 +353,23 @@ function ManageUserActivityParams() {
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-[#D9D9D9]">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-[#6E6E6E] uppercase tracking-wider">
-                  ID
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-[#6E6E6E] uppercase tracking-wider">
-                  Usuário
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-[#6E6E6E] uppercase tracking-wider">
-                  Atividade
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-[#6E6E6E] uppercase tracking-wider">
-                  Nível
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-[#6E6E6E] uppercase tracking-wider">
-                  Iniciado em
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-[#6E6E6E] uppercase tracking-wider">
-                  Finalizado em
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-[#6E6E6E] uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-[#6E6E6E] uppercase tracking-wider">
-                  Ações
-                </th>
+                {[
+                  'ID',
+                  'Usuário',
+                  'Atividade',
+                  'Nível',
+                  'Iniciado em',
+                  'Finalizado em',
+                  'Status',
+                  'Ações',
+                ].map((label) => (
+                  <th
+                    key={label}
+                    className="px-6 py-3 text-left text-xs font-medium text-[#6E6E6E] uppercase tracking-wider"
+                  >
+                    {label}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-[#D9D9D9]">

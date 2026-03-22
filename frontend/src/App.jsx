@@ -3,6 +3,7 @@ import Login from './components/Login';
 import Layout from './components/Layout';
 import { authStorage } from './utils/auth';
 import api from './config/api';
+import { LoadingState } from './components/ui';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -44,14 +45,7 @@ function App() {
   };
 
   if (isCheckingAuth) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E6A8D7] mx-auto mb-4"></div>
-          <p className="text-[#777777]">Verificando autenticação...</p>
-        </div>
-      </div>
-    );
+    return <LoadingState message="Verificando autenticação..." spinner />;
   }
 
   if (isAuthenticated) {

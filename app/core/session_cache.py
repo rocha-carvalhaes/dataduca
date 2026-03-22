@@ -2,6 +2,7 @@
 Cache em memória para rastrear sessões de atividades completadas.
 Evita consultas ao banco para verificar quantas sessões um usuário completou.
 """
+
 from threading import Lock
 from typing import Dict, Tuple, Optional
 from datetime import datetime, timedelta
@@ -175,9 +176,7 @@ def get_cache() -> SessionCompletionCache:
     return _session_cache
 
 
-def register_session(
-    activity_session_id: int, user_id: int, activity_id: int
-):
+def register_session(activity_session_id: int, user_id: int, activity_id: int):
     """Registra uma nova sessão no cache quando ela é criada."""
     get_cache().register_session(activity_session_id, user_id, activity_id)
 
@@ -195,9 +194,7 @@ def get_session_count(user_id: int, activity_id: int) -> int:
     return get_cache().get_count(user_id, activity_id)
 
 
-def has_minimum_sessions(
-    user_id: int, activity_id: int, minimum: int = 3
-) -> bool:
+def has_minimum_sessions(user_id: int, activity_id: int, minimum: int = 3) -> bool:
     """Verifica se o usuário completou pelo menos 'minimum' sessões."""
     return get_cache().has_minimum_sessions(user_id, activity_id, minimum)
 

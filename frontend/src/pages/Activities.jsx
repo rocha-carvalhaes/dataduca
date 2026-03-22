@@ -1,36 +1,22 @@
-import { useState, useEffect } from 'react';
+import { useCallback } from 'react';
 import api from '../config/api';
+import { useFetch } from '../hooks/useFetch';
+import { LoadingState, ErrorAlert } from '../components/ui';
 
 function Activities({ onOpenActivity }) {
-  const [activities, setActivities] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    loadActivities();
+  const loadActivities = useCallback(async () => {
+    const data = await api.activities.list();
+    return data.map((activity) => ({
+      id: activity.activity_id,
+      title: activity.activity_name,
+      description: activity.activity_description || '',
+      type: activity.activity_type,
+      icon: activity.activity_icon || '💭',
+    }));
   }, []);
 
-  const loadActivities = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await api.activities.list();
-      // Mapear os dados da API para o formato esperado
-      const mappedActivities = data.map((activity) => ({
-        id: activity.activity_id,
-        title: activity.activity_name,
-        description: activity.activity_description || '',
-        type: activity.activity_type,
-        icon: activity.activity_icon || '💭', // ← Usa activity_icon do banco!
-      }));
-      setActivities(mappedActivities);
-    } catch (err) {
-      setError(err.message || 'Erro ao carregar atividades. Tente novamente.');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { data: activities, loading, error } = useFetch(loadActivities);
+  const activityList = activities || [];
 
   return (
     <div className="p-6">
@@ -41,7 +27,6 @@ function Activities({ onOpenActivity }) {
         </p>
       </div>
 
-      {/* Search bar */}
       <div className="bg-white rounded-lg shadow p-4 mb-6 border border-[#D9D9D9]">
         <div className="relative">
           <input
@@ -65,31 +50,18 @@ function Activities({ onOpenActivity }) {
         </div>
       </div>
 
-      {error && (
-        <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-          {error}
-        </div>
-      )}
+      <ErrorAlert message={error} />
 
       {loading ? (
-        <div className="flex items-center justify-center py-12">
-          <div className="text-[#6E6E6E]">Carregando atividades...</div>
-        </div>
+        <LoadingState message="Carregando atividades..." />
       ) : (
-        /* Activity cards */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {activities.map((activity) => (
+          {activityList.map((activity) => (
             <div
               key={activity.id}
               onClick={() => {
-                console.log('Card clicado:', {
-                  id: activity.id,
-                  type: activity.type,
-                });
                 if (onOpenActivity) {
                   onOpenActivity(activity.id, activity.type);
-                } else {
-                  console.error('onOpenActivity não está definido!');
                 }
               }}
               onKeyDown={(e) => {

@@ -1,10 +1,29 @@
-import { useState, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import api from '../config/api';
+import { useFetch } from '../hooks/useFetch';
+import { formatDate } from '../utils/format';
+import {
+  LoadingState,
+  ErrorAlert,
+  DataTable,
+  AddButton,
+  Card,
+  FormField,
+  Input,
+  Textarea,
+} from '../components/ui';
+import { EditButton, DeleteButton } from '../components/ui';
 
 function ManageActivities() {
-  const [activities, setActivities] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const loadActivities = useCallback(() => api.activities.list(), []);
+  const {
+    data: activities,
+    loading,
+    error,
+    setError,
+    refetch,
+  } = useFetch(loadActivities);
+
   const [showForm, setShowForm] = useState(false);
   const [editingActivity, setEditingActivity] = useState(null);
   const [formData, setFormData] = useState({
@@ -15,24 +34,6 @@ function ManageActivities() {
     activity_icon: '',
     activity_version: '0.0',
   });
-
-  useEffect(() => {
-    loadActivities();
-  }, []);
-
-  const loadActivities = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await api.activities.list();
-      setActivities(data);
-    } catch (err) {
-      setError(err.message || 'Erro ao carregar atividades. Tente novamente.');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -53,7 +54,7 @@ function ManageActivities() {
         activity_icon: '',
         activity_version: '0.0',
       });
-      loadActivities();
+      refetch();
     } catch (err) {
       setError(err.message || 'Erro ao salvar atividade. Tente novamente.');
       console.error(err);
@@ -80,7 +81,7 @@ function ManageActivities() {
     try {
       setError(null);
       await api.activities.delete(activityId);
-      loadActivities();
+      refetch();
     } catch (err) {
       setError(err.message || 'Erro ao deletar atividade. Tente novamente.');
       console.error(err);
@@ -99,65 +100,67 @@ function ManageActivities() {
     setError(null);
   };
 
-  const formatDate = (dateString) => {
-    if (!dateString) return '-';
-    return new Date(dateString).toLocaleString('pt-BR');
-  };
+  const rows = activities || [];
+
+  const columns = [
+    { key: 'activity_id', label: 'ID' },
+    {
+      key: 'activity_name',
+      label: 'Nome',
+      className: 'font-medium text-[#333333]',
+      render: (row) => row.activity_name,
+    },
+    {
+      key: 'activity_description',
+      label: 'Descrição',
+      wrap: true,
+      className: 'text-[#6E6E6E]',
+      render: (row) => row.activity_description || '-',
+    },
+    { key: 'activity_version', label: 'Versão' },
+    {
+      key: 'updated_at',
+      label: 'Atualizado em',
+      className: 'text-[#6E6E6E]',
+      render: (row) => formatDate(row.updated_at),
+    },
+    {
+      key: 'actions',
+      label: 'Ações',
+      align: 'right',
+      render: (row) => (
+        <div className="flex justify-end gap-2">
+          <EditButton onClick={() => handleEdit(row)} />
+          <DeleteButton onClick={() => handleDelete(row.activity_id)} />
+        </div>
+      ),
+    },
+  ];
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-[#6E6E6E]">Carregando atividades...</div>
-      </div>
-    );
+    return <LoadingState message="Carregando atividades..." />;
   }
 
   return (
     <div>
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
-          {error}
-        </div>
-      )}
+      <ErrorAlert message={error} />
 
       {!showForm && (
         <div className="mb-6 flex justify-end">
-          <button
-            onClick={() => setShowForm(true)}
-            className="bg-[#E6A8D7] text-white px-6 py-2 rounded-lg hover:bg-[#D89BC8] transition-colors font-medium flex items-center gap-2"
-          >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 4v16m8-8H4"
-              />
-            </svg>
+          <AddButton onClick={() => setShowForm(true)}>
             Nova Atividade
-          </button>
+          </AddButton>
         </div>
       )}
 
       {showForm && (
-        <div className="bg-white rounded-lg shadow border border-[#D9D9D9] p-6 mb-6">
+        <Card className="mb-6">
           <h2 className="text-xl font-semibold text-[#333333] mb-4">
             {editingActivity ? 'Editar Atividade' : 'Nova Atividade'}
           </h2>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label
-                htmlFor="activity_name"
-                className="block text-sm font-medium text-[#333333] mb-2"
-              >
-                Nome da Atividade *
-              </label>
-              <input
+            <FormField label="Nome da Atividade *" id="activity_name">
+              <Input
                 id="activity_name"
                 type="text"
                 required
@@ -165,18 +168,11 @@ function ManageActivities() {
                 onChange={(e) =>
                   setFormData({ ...formData, activity_name: e.target.value })
                 }
-                className="w-full px-4 py-2 border border-[#D9D9D9] rounded-lg focus:ring-2 focus:ring-[#E6A8D7] focus:border-transparent outline-none"
                 placeholder="Digite o nome da atividade"
               />
-            </div>
-            <div>
-              <label
-                htmlFor="activity_description"
-                className="block text-sm font-medium text-[#333333] mb-2"
-              >
-                Descrição
-              </label>
-              <textarea
+            </FormField>
+            <FormField label="Descrição" id="activity_description">
+              <Textarea
                 id="activity_description"
                 value={formData.activity_description}
                 onChange={(e) =>
@@ -185,19 +181,12 @@ function ManageActivities() {
                     activity_description: e.target.value,
                   })
                 }
-                className="w-full px-4 py-2 border border-[#D9D9D9] rounded-lg focus:ring-2 focus:ring-[#E6A8D7] focus:border-transparent outline-none"
                 placeholder="Digite a descrição da atividade"
-                rows="3"
+                rows={3}
               />
-            </div>
-            <div>
-              <label
-                htmlFor="activity_objective"
-                className="block text-sm font-medium text-[#333333] mb-2"
-              >
-                Objetivo
-              </label>
-              <textarea
+            </FormField>
+            <FormField label="Objetivo" id="activity_objective">
+              <Textarea
                 id="activity_objective"
                 value={formData.activity_objective}
                 onChange={(e) =>
@@ -206,19 +195,16 @@ function ManageActivities() {
                     activity_objective: e.target.value,
                   })
                 }
-                className="w-full px-4 py-2 border border-[#D9D9D9] rounded-lg focus:ring-2 focus:ring-[#E6A8D7] focus:border-transparent outline-none"
                 placeholder="Digite o objetivo da atividade"
-                rows="3"
+                rows={3}
               />
-            </div>
-            <div>
-              <label
-                htmlFor="activity_type"
-                className="block text-sm font-medium text-[#333333] mb-2"
-              >
-                Tipo de Atividade *
-              </label>
-              <input
+            </FormField>
+            <FormField
+              label="Tipo de Atividade *"
+              id="activity_type"
+              hint="Define qual componente/script será usado para esta atividade"
+            >
+              <Input
                 id="activity_type"
                 type="text"
                 required
@@ -226,21 +212,15 @@ function ManageActivities() {
                 onChange={(e) =>
                   setFormData({ ...formData, activity_type: e.target.value })
                 }
-                className="w-full px-4 py-2 border border-[#D9D9D9] rounded-lg focus:ring-2 focus:ring-[#E6A8D7] focus:border-transparent outline-none"
                 placeholder="Ex: digitacao, memoria, raciocinio"
               />
-              <p className="mt-1 text-xs text-[#6E6E6E]">
-                Define qual componente/script será usado para esta atividade
-              </p>
-            </div>
-            <div>
-              <label
-                htmlFor="activity_icon"
-                className="block text-sm font-medium text-[#333333] mb-2"
-              >
-                Ícone (Emoji) *
-              </label>
-              <input
+            </FormField>
+            <FormField
+              label="Ícone (Emoji) *"
+              id="activity_icon"
+              hint="Digite um emoji para o ícone da atividade (ex: 💭, 🎮, 📚)"
+            >
+              <Input
                 id="activity_icon"
                 type="text"
                 required
@@ -248,33 +228,26 @@ function ManageActivities() {
                 onChange={(e) =>
                   setFormData({ ...formData, activity_icon: e.target.value })
                 }
-                className="w-full px-4 py-2 border border-[#D9D9D9] rounded-lg focus:ring-2 focus:ring-[#E6A8D7] focus:border-transparent outline-none text-2xl"
+                className="text-2xl"
                 placeholder="💭"
                 maxLength={2}
               />
-              <p className="mt-1 text-xs text-[#6E6E6E]">
-                Digite um emoji para o ícone da atividade (ex: 💭, 🎮, 📚)
-              </p>
-            </div>
-            <div>
-              <label
-                htmlFor="activity_version"
-                className="block text-sm font-medium text-[#333333] mb-2"
-              >
-                Versão *
-              </label>
-              <input
+            </FormField>
+            <FormField label="Versão *" id="activity_version">
+              <Input
                 id="activity_version"
                 type="text"
                 required
                 value={formData.activity_version}
                 onChange={(e) =>
-                  setFormData({ ...formData, activity_version: e.target.value })
+                  setFormData({
+                    ...formData,
+                    activity_version: e.target.value,
+                  })
                 }
-                className="w-full px-4 py-2 border border-[#D9D9D9] rounded-lg focus:ring-2 focus:ring-[#E6A8D7] focus:border-transparent outline-none"
                 placeholder="Ex: 1.0"
               />
-            </div>
+            </FormField>
             <div className="flex gap-3 justify-end">
               <button
                 type="button"
@@ -291,111 +264,15 @@ function ManageActivities() {
               </button>
             </div>
           </form>
-        </div>
+        </Card>
       )}
 
-      <div className="bg-white rounded-lg shadow border border-[#D9D9D9] overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-[#F5F6F7] border-b border-[#D9D9D9]">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-[#6E6E6E] uppercase tracking-wider">
-                  ID
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-[#6E6E6E] uppercase tracking-wider">
-                  Nome
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-[#6E6E6E] uppercase tracking-wider">
-                  Descrição
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-[#6E6E6E] uppercase tracking-wider">
-                  Versão
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-[#6E6E6E] uppercase tracking-wider">
-                  Atualizado em
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-[#6E6E6E] uppercase tracking-wider">
-                  Ações
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#D9D9D9]">
-              {activities.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan="6"
-                    className="px-6 py-8 text-center text-[#6E6E6E]"
-                  >
-                    Nenhuma atividade encontrada
-                  </td>
-                </tr>
-              ) : (
-                activities.map((activity) => (
-                  <tr key={activity.activity_id} className="hover:bg-[#F5F6F7]">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-[#333333]">
-                      {activity.activity_id}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-[#333333]">
-                      {activity.activity_name}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-[#6E6E6E]">
-                      {activity.activity_description || '-'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-[#333333]">
-                      {activity.activity_version}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-[#6E6E6E]">
-                      {formatDate(activity.updated_at)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex justify-end gap-2">
-                        <button
-                          onClick={() => handleEdit(activity)}
-                          className="text-[#E6A8D7] hover:text-[#D89BC8] transition-colors"
-                          title="Editar"
-                        >
-                          <svg
-                            className="w-5 h-5"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                            />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={() => handleDelete(activity.activity_id)}
-                          className="text-red-600 hover:text-red-800 transition-colors"
-                          title="Deletar"
-                        >
-                          <svg
-                            className="w-5 h-5"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                            />
-                          </svg>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <DataTable
+        columns={columns}
+        data={rows}
+        rowKey={(row) => row.activity_id}
+        emptyMessage="Nenhuma atividade encontrada"
+      />
     </div>
   );
 }

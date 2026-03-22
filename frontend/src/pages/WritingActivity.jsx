@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import api from '../config/api';
+import { LoadingState, BackButton } from '../components/ui';
 
 function WritingActivity({ onBack, activityId }) {
   const [phrase, setPhrase] = useState('');
@@ -109,7 +110,8 @@ function WritingActivity({ onBack, activityId }) {
       // Adicionar cada caractere aos typed_keys
       addedChars.split('').forEach((char, index) => {
         const charIndex = previousValue.length + index;
-        const isCorrect = charIndex < phrase.length && char === phrase[charIndex];
+        const isCorrect =
+          charIndex < phrase.length && char === phrase[charIndex];
         // Usar timestamp com pequeno incremento para manter ordem e garantir unicidade
         const charTimestamp = new Date(Date.now() + index).toISOString();
 
@@ -217,41 +219,14 @@ function WritingActivity({ onBack, activityId }) {
   }, [loadParams]);
 
   if (loading) {
-    return (
-      <div className="p-6">
-        <div className="flex items-center justify-center h-96">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E6A8D7] mx-auto mb-4"></div>
-            <p className="text-[#777777]">Carregando atividade...</p>
-          </div>
-        </div>
-      </div>
-    );
+    return <LoadingState message="Carregando atividade..." spinner />;
   }
 
   if (error) {
     return (
       <div className="p-6">
         <div className="mb-6 flex items-center justify-between">
-          <button
-            onClick={onBack}
-            className="flex items-center gap-2 text-[#6E6E6E] hover:text-[#333333] transition-colors mb-2"
-          >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 19l-7-7 7-7"
-              />
-            </svg>
-            Voltar
-          </button>
+          <BackButton onClick={onBack} />
         </div>
         <div className="bg-white rounded-lg shadow border border-[#F2B8C6] p-6">
           <p className="text-red-600">{error}</p>
@@ -265,28 +240,8 @@ function WritingActivity({ onBack, activityId }) {
       <div className="p-6">
         <div className="mb-6 flex items-center justify-between">
           <div>
-            <button
-              onClick={onBack}
-              className="flex items-center gap-2 text-[#6E6E6E] hover:text-[#333333] transition-colors mb-2"
-            >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15 19l-7-7 7-7"
-                />
-              </svg>
-              Voltar
-            </button>
-            <h1 className="text-3xl font-bold text-[#333333] mb-2">
-              Escrita
-            </h1>
+            <BackButton onClick={onBack} />
+            <h1 className="text-3xl font-bold text-[#333333] mb-2">Escrita</h1>
             <p className="text-[#777777]">
               Digite a frase exatamente como aparece acima
             </p>
@@ -296,7 +251,8 @@ function WritingActivity({ onBack, activityId }) {
         <div className="bg-white rounded-lg shadow border border-[#D9D9D9] p-6 max-w-2xl mx-auto">
           <div className="text-center mb-6">
             <p className="text-lg text-[#333333] mb-4">
-              Você precisará digitar a frase exatamente como mostrada, incluindo maiúsculas, minúsculas e acentuação.
+              Você precisará digitar a frase exatamente como mostrada, incluindo
+              maiúsculas, minúsculas e acentuação.
             </p>
             <div className="flex items-center justify-center">
               <button
@@ -326,28 +282,8 @@ function WritingActivity({ onBack, activityId }) {
       {/* Header */}
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <button
-            onClick={onBack}
-            className="flex items-center gap-2 text-[#6E6E6E] hover:text-[#333333] transition-colors mb-2"
-          >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 19l-7-7 7-7"
-              />
-            </svg>
-            Voltar
-          </button>
-          <h1 className="text-3xl font-bold text-[#333333] mb-2">
-            Escrita
-          </h1>
+          <BackButton onClick={onBack} />
+          <h1 className="text-3xl font-bold text-[#333333] mb-2">Escrita</h1>
         </div>
       </div>
 
@@ -372,13 +308,16 @@ function WritingActivity({ onBack, activityId }) {
           </label>
           <div className="relative">
             {/* Fundo branco atrás */}
-            <div className="absolute inset-0 bg-white rounded-lg pointer-events-none" style={{ zIndex: 0 }} />
-            
+            <div
+              className="absolute inset-0 bg-white rounded-lg pointer-events-none"
+              style={{ zIndex: 0 }}
+            />
+
             {/* Overlay para destacar caracteres corretos (atrás do texto) */}
             {userInput.length > 0 && (
               <div
                 className="absolute top-4 left-4 pointer-events-none text-2xl font-mono whitespace-pre-wrap break-words"
-                style={{ 
+                style={{
                   color: 'transparent',
                   width: 'calc(100% - 2rem)',
                   height: 'calc(100% - 2rem)',
@@ -387,13 +326,17 @@ function WritingActivity({ onBack, activityId }) {
               >
                 {userInput.split('').map((char, index) => {
                   const isCorrect = isCharCorrect(index);
-                  const showHighlight = firstWrongIndex === -1 || index < firstWrongIndex;
+                  const showHighlight =
+                    firstWrongIndex === -1 || index < firstWrongIndex;
 
                   return (
                     <span
                       key={index}
                       style={{
-                        backgroundColor: showHighlight && isCorrect ? '#B8E3C0' : 'transparent',
+                        backgroundColor:
+                          showHighlight && isCorrect
+                            ? '#B8E3C0'
+                            : 'transparent',
                       }}
                     >
                       {char === ' ' ? '\u00A0' : char}
@@ -467,4 +410,3 @@ function WritingActivity({ onBack, activityId }) {
 }
 
 export default WritingActivity;
-
