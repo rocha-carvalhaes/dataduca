@@ -251,6 +251,20 @@ export const api = {
       return api.request(`/api/user-activity-params/${id}`);
     },
   },
+  manage: {
+    async tables() {
+      return api.request('/api/manage/tables');
+    },
+    async columns(table) {
+      return api.request(`/api/manage/columns?table=${table}`);
+    },
+    async query(data) {
+      return api.request('/api/manage/query', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+    },
+  },
   userLevels: {
     async evaluate(userId, activityId) {
       return api.request(`/api/user-levels/evaluate/${userId}/${activityId}`, {
