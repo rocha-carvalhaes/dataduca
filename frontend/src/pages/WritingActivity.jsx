@@ -403,10 +403,7 @@ function WritingActivity({ onBack, activityId }) {
                       }
 
                       return (
-                        <span
-                          key={index}
-                          style={{ backgroundColor: bgColor }}
-                        >
+                        <span key={index} style={{ backgroundColor: bgColor }}>
                           {char === ' ' ? '\u00A0' : char}
                         </span>
                       );
