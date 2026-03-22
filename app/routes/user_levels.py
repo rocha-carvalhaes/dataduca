@@ -281,7 +281,6 @@ async def evaluate_all_user_levels(
     """
     Avalia e atualiza todos os níveis de um usuário.
     """
-    # Verificar permissões
     if (
         current_user.user_type not in ["administrador", "professor"]
         and current_user.user_id != user_id
@@ -292,7 +291,6 @@ async def evaluate_all_user_levels(
     try:
         conn = get_db_connection()
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            # Buscar todas as atividades do usuário
             cur.execute(
                 """
                 SELECT DISTINCT ap.activity_id
@@ -308,7 +306,6 @@ async def evaluate_all_user_levels(
             for activity in activities:
                 activity_id = activity["activity_id"]
                 try:
-                    # Chamar avaliação individual
                     result = await evaluate_user_level(
                         user_id, activity_id, current_user
                     )
@@ -331,6 +328,130 @@ async def evaluate_all_user_levels(
 
     except Exception as e:
         logger.error(f"Erro ao avaliar todos os níveis: {str(e)}", exc_info=True)
+        raise HTTPException(500, f"Erro ao avaliar níveis: {str(e)}")
+    finally:
+        if conn:
+            conn.close()
+
+
+def _ensure_level_one(cur, conn) -> list:
+    """
+    Para cada (usuário, atividade) sem nível ativo, atribui nível 1.
+    Retorna lista de dicts {user_id, activity_id} que foram criados.
+    """
+    cur.execute("""
+        SELECT u.user_id, ap.activity_id, ap.activity_param_id
+        FROM users u
+        CROSS JOIN (
+            SELECT DISTINCT ON (activity_id)
+                activity_param_id, activity_id
+            FROM activity_params
+            WHERE active = TRUE AND level = 1
+            ORDER BY activity_id, created_at DESC
+        ) ap
+        WHERE NOT EXISTS (
+            SELECT 1
+            FROM user_activity_params uap
+            JOIN activity_params ap2
+                ON uap.activity_param_id = ap2.activity_param_id
+            WHERE uap.user_id = u.user_id
+                AND ap2.activity_id = ap.activity_id
+                AND uap.active = TRUE
+        )
+        ORDER BY u.user_id, ap.activity_id
+    """)
+    missing = cur.fetchall()
+
+    created = []
+    for row in missing:
+        cur.execute(
+            """
+            INSERT INTO user_activity_params
+                (activity_param_id, user_id, active)
+            VALUES (%s, %s, TRUE)
+            """,
+            (row["activity_param_id"], row["user_id"]),
+        )
+        created.append({"user_id": row["user_id"], "activity_id": row["activity_id"]})
+
+    if created:
+        conn.commit()
+        logger.info(f"Nível 1 atribuído a {len(created)} par(es) usuário/atividade")
+
+    return created
+
+
+@router.post("/evaluate-all-users")
+async def evaluate_all_users_levels(
+    current_user: TokenData = Depends(get_current_user),
+):
+    """
+    Avalia e atualiza os níveis de TODOS os usuários para TODAS as atividades.
+    Antes de avaliar, atribui nível 1 para quem ainda não tem nível registrado.
+    Apenas administradores e professores podem executar.
+    """
+    if current_user.user_type not in ["administrador", "professor"]:
+        raise HTTPException(403, "Apenas administradores/professores podem executar")
+
+    conn = None
+    try:
+        conn = get_db_connection()
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            assigned = _ensure_level_one(cur, conn)
+
+            cur.execute("""
+                SELECT DISTINCT uap.user_id, ap.activity_id
+                FROM user_activity_params uap
+                JOIN activity_params ap
+                    ON uap.activity_param_id = ap.activity_param_id
+                WHERE uap.active = TRUE AND ap.active = TRUE
+                ORDER BY uap.user_id, ap.activity_id
+            """)
+            pairs = cur.fetchall()
+
+        conn.close()
+        conn = None
+
+        results = []
+        updated_count = 0
+        error_count = 0
+
+        for pair in pairs:
+            uid, aid = pair["user_id"], pair["activity_id"]
+            try:
+                result = await evaluate_user_level(uid, aid, current_user)
+                row = result.dict()
+                results.append(row)
+                if row.get("updated"):
+                    updated_count += 1
+            except Exception as e:
+                error_count += 1
+                logger.error(
+                    f"Erro evaluate user={uid} activity={aid}: {e}",
+                    exc_info=True,
+                )
+                results.append(
+                    {
+                        "user_id": uid,
+                        "activity_id": aid,
+                        "updated": False,
+                        "message": f"Erro: {str(e)}",
+                    }
+                )
+
+        return {
+            "total_evaluated": len(results),
+            "updated": updated_count,
+            "errors": error_count,
+            "assigned_level_one": len(assigned),
+            "assigned_details": assigned,
+            "results": results,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Erro evaluate-all-users: {str(e)}", exc_info=True)
         raise HTTPException(500, f"Erro ao avaliar níveis: {str(e)}")
     finally:
         if conn:

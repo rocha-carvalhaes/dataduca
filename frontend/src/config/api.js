@@ -21,10 +21,11 @@ export const api = {
       ...options,
     };
 
-    // Criar um timeout de 5 segundos
+    const timeoutMs = options.timeout || 5000;
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
     config.signal = controller.signal;
+    delete config.timeout;
 
     try {
       const response = await fetch(url, config);
@@ -51,7 +52,7 @@ export const api = {
     } catch (error) {
       clearTimeout(timeoutId);
       if (error.name === 'AbortError') {
-        console.error('Requisição timeout após 5 segundos');
+        console.error(`Requisição timeout após ${timeoutMs / 1000}s`);
         throw new Error('Timeout: Servidor não respondeu');
       }
       console.error('Erro na requisição:', error);
@@ -274,6 +275,12 @@ export const api = {
     async evaluateAll(userId) {
       return api.request(`/api/user-levels/evaluate-all/${userId}`, {
         method: 'POST',
+      });
+    },
+    async evaluateAllUsers() {
+      return api.request('/api/user-levels/evaluate-all-users', {
+        method: 'POST',
+        timeout: 30000,
       });
     },
   },

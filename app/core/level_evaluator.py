@@ -104,8 +104,8 @@ class LevelEvaluator:
         """
         Avalia resultados da atividade de digitação.
 
-        Sobe de nível se: média de hit_rate das últimas N sessões (limitado a required_games) >= parâmetro
-        Desce de nível se: média de hit_rate das últimas N sessões (limitado a required_games) < parâmetro
+        Sobe de nível se: média de hit_rate das últimas N sessões >= parâmetro
+        Desce de nível se: média de hit_rate das últimas N sessões < parâmetro
         """
         if not recent_sessions:
             logger.warning("Nenhuma sessão recente para avaliar")
@@ -211,7 +211,8 @@ class LevelEvaluator:
 
         logger.info(
             f"Parâmetros UP: games_count={up_games_count}, "
-            f"required_games={up_required_games}, max_movements_percentage={max_movements_percentage}"
+            f"required_games={up_required_games}, "
+            f"max_movements_percentage={max_movements_percentage}"
         )
 
         # Parâmetros para descer de nível
@@ -223,7 +224,8 @@ class LevelEvaluator:
 
         logger.info(
             f"Parâmetros DOWN: games_count={down_games_count}, "
-            f"required_games={down_required_games}, min_movements_percentage={min_movements_percentage}"
+            f"required_games={down_required_games}, "
+            f"min_movements_percentage={min_movements_percentage}"
         )
 
         up_sessions = recent_sessions[:up_games_count]
@@ -352,152 +354,114 @@ class LevelEvaluator:
         return None
 
     @staticmethod
-    def evaluate_writing_activity(  # noqa: C901
-        recent_sessions: List[dict], level_up_params: dict, level_down_params: dict
+    def _calc_session_accuracy(results: dict) -> Optional[float]:
+        """
+        Calcula a acurácia de uma sessão de escrita.
+        Formato esperado: results.phrases_typed_keys = { "0": [...], "1": [...] }
+        Cada entrada é {key, correct_key, hit_time}.
+        Acurácia = teclas corretas / total de teclas (excluindo Backspace) * 100.
+        """
+        phrases_typed_keys = results.get("phrases_typed_keys", {})
+        if not phrases_typed_keys:
+            return None
+
+        total_keys = 0
+        correct_keys = 0
+
+        for typed_keys in phrases_typed_keys.values():
+            if not isinstance(typed_keys, list):
+                continue
+            for key_data in typed_keys:
+                if key_data.get("key") == "Backspace":
+                    continue
+                total_keys += 1
+                if key_data.get("correct_key", False):
+                    correct_keys += 1
+
+        if total_keys == 0:
+            return None
+        return (correct_keys / total_keys) * 100
+
+    @staticmethod
+    def _collect_writing_accuracies(sessions, required):
+        """Coleta acurácias de sessões de escrita até atingir required."""
+        accs = []
+        for s in sessions:
+            results = s.get("results", {})
+            if isinstance(results, str):
+                results = json.loads(results)
+            acc = LevelEvaluator._calc_session_accuracy(results)
+            if acc is not None:
+                accs.append(acc)
+                if len(accs) >= required:
+                    break
+        return accs
+
+    @staticmethod
+    def _check_writing_level(
+        sessions, required, threshold, direction
+    ) -> Optional[dict]:
+        """Verifica se deve subir ou descer de nível na escrita."""
+        if not sessions:
+            return None
+        accs = LevelEvaluator._collect_writing_accuracies(sessions, required)
+        logger.info(f"Writing {direction}: accuracies={accs}")
+        if len(accs) < required:
+            return None
+        avg = sum(accs) / len(accs)
+        if direction == "UP" and avg >= threshold:
+            logger.info(f"Writing UP: avg={avg:.1f}% >= {threshold}%")
+            return {
+                "action": "level_up",
+                "reason": "high_accuracy",
+                "avg_accuracy": avg,
+                "threshold": threshold,
+                "sessions_evaluated": len(accs),
+            }
+        if direction == "DOWN" and avg < threshold:
+            logger.info(f"Writing DOWN: avg={avg:.1f}% < {threshold}%")
+            return {
+                "action": "level_down",
+                "reason": "low_accuracy",
+                "avg_accuracy": avg,
+                "threshold": threshold,
+                "sessions_evaluated": len(accs),
+            }
+        return None
+
+    @staticmethod
+    def evaluate_writing_activity(
+        recent_sessions: List[dict],
+        level_up_params: dict,
+        level_down_params: dict,
     ) -> Optional[dict]:
         """
-        Avalia resultados da atividade de escrita.
+        Avalia resultados da atividade de escrita baseado em acurácia.
 
-        Sobe de nível se: tempo médio entre caracteres corretos < X ms
-        Desce de nível se: tempo médio entre caracteres corretos > Y ms
+        Sobe de nível se: média de acurácia >= min_avg_accuracy
+        Desce de nível se: média de acurácia < max_avg_accuracy
         """
         if not recent_sessions:
             return None
 
-        # Parâmetros para subir de nível
-        up_games_count = level_up_params.get("games_count", len(recent_sessions))
-        up_required_games = level_up_params.get("required_games", up_games_count)
-        max_avg_time_ms = level_up_params.get("max_avg_time_ms", 500)
+        n = len(recent_sessions)
+        up_count = level_up_params.get("games_count", n)
+        up_required = level_up_params.get("required_games", up_count)
+        min_acc = level_up_params.get("min_avg_accuracy", 90)
 
-        logger.info(
-            f"Parâmetros UP: games_count={up_games_count}, "
-            f"required_games={up_required_games}, max_avg_time_ms={max_avg_time_ms}"
+        down_count = level_down_params.get("games_count", n)
+        down_required = level_down_params.get("required_games", down_count)
+        max_acc = level_down_params.get("max_avg_accuracy", 40)
+
+        logger.info(f"Writing UP: required={up_required}, min={min_acc}")
+        logger.info(f"Writing DOWN: required={down_required}, max={max_acc}")
+
+        result = LevelEvaluator._check_writing_level(
+            recent_sessions[:up_count], up_required, min_acc, "UP"
         )
+        if result:
+            return result
 
-        # Parâmetros para descer de nível
-        down_games_count = level_down_params.get("games_count", len(recent_sessions))
-        down_required_games = level_down_params.get("required_games", down_games_count)
-        min_avg_time_ms = level_down_params.get("min_avg_time_ms", 1000)
-
-        logger.info(
-            f"Parâmetros DOWN: games_count={down_games_count}, "
-            f"required_games={down_required_games}, min_avg_time_ms={min_avg_time_ms}"
+        return LevelEvaluator._check_writing_level(
+            recent_sessions[:down_count], down_required, max_acc, "DOWN"
         )
-
-        up_sessions = recent_sessions[:up_games_count]
-        down_sessions = recent_sessions[:down_games_count]
-
-        def calculate_avg_time_between_correct_keys(sessions, required_games):
-            """
-            Calcula o tempo médio entre caracteres corretos consecutivos.
-            Retorna (avg_time_ms, valid_sessions_count).
-            Considera apenas sessões válidas (com pelo menos 2 caracteres corretos).
-            Backspace sempre é considerado incorreto.
-            """
-            all_intervals = []
-            valid_sessions = []
-
-            for session in sessions:
-                results = session.get("results", {})
-                if isinstance(results, str):
-                    results = json.loads(results)
-
-                typed_keys = results.get("typed_keys", [])
-
-                if not typed_keys or len(typed_keys) < 2:
-                    continue
-
-                # Filtrar apenas teclas corretas (excluir backspace)
-                correct_keys = [
-                    key_data
-                    for key_data in typed_keys
-                    if key_data.get("correct_key", False)
-                    and key_data.get("key") != "Backspace"
-                ]
-
-                if len(correct_keys) < 2:
-                    continue  # Precisa de pelo menos 2 caracteres corretos para calcular intervalo
-
-                # Calcular intervalos entre caracteres corretos consecutivos
-                session_intervals = []
-                for i in range(1, len(correct_keys)):
-                    try:
-                        hit_time1 = correct_keys[i - 1]["hit_time"]
-                        hit_time2 = correct_keys[i]["hit_time"]
-
-                        # Normalizar formato de timestamp
-                        if hit_time1.endswith("Z"):
-                            hit_time1 = hit_time1.replace("Z", "+00:00")
-                        if hit_time2.endswith("Z"):
-                            hit_time2 = hit_time2.replace("Z", "+00:00")
-
-                        time1 = datetime.fromisoformat(hit_time1)
-                        time2 = datetime.fromisoformat(hit_time2)
-                        interval_ms = (time2 - time1).total_seconds() * 1000
-                        if interval_ms > 0:  # Ignorar intervalos inválidos
-                            session_intervals.append(interval_ms)
-                    except (ValueError, KeyError, TypeError) as e:
-                        logger.warning(f"Erro ao processar timestamp: {e}")
-                        continue
-
-                if session_intervals:
-                    valid_sessions.append(session_intervals)
-                    all_intervals.extend(session_intervals)
-
-            # Limitar a required_games (apenas as sessões mais recentes)
-            valid_sessions = valid_sessions[:required_games]
-
-            if len(valid_sessions) < required_games:
-                return None, len(valid_sessions)
-
-            if not all_intervals:
-                return None, len(valid_sessions)
-
-            # Calcular média de todos os intervalos
-            avg_time_ms = sum(all_intervals) / len(all_intervals)
-
-            return avg_time_ms, len(valid_sessions)
-
-        # Verificar se deve subir de nível
-        if level_up_params and up_sessions:
-            avg_time_ms, valid_sessions_count = calculate_avg_time_between_correct_keys(
-                up_sessions, up_required_games
-            )
-
-            logger.info(
-                f"UP: avg_time_ms={avg_time_ms}, valid_sessions={valid_sessions_count}, "
-                f"required={up_required_games}, threshold={max_avg_time_ms}"
-            )
-            if avg_time_ms is not None and valid_sessions_count >= up_required_games:
-                if avg_time_ms < max_avg_time_ms:
-                    logger.info("UP: Critério atendido, subindo de nível")
-                    return {
-                        "action": "level_up",
-                        "reason": "fast_typing_speed",
-                        "avg_time_ms": avg_time_ms,
-                        "max_allowed_ms": max_avg_time_ms,
-                        "sessions_evaluated": valid_sessions_count,
-                    }
-
-        # Verificar se deve descer de nível
-        if level_down_params and down_sessions:
-            avg_time_ms, valid_sessions_count = calculate_avg_time_between_correct_keys(
-                down_sessions, down_required_games
-            )
-
-            logger.info(
-                f"DOWN: avg_time_ms={avg_time_ms}, valid_sessions={valid_sessions_count}, "
-                f"required={down_required_games}, threshold={min_avg_time_ms}"
-            )
-            if avg_time_ms is not None and valid_sessions_count >= down_required_games:
-                if avg_time_ms > min_avg_time_ms:
-                    logger.info("DOWN: Critério atendido, descendo de nível")
-                    return {
-                        "action": "level_down",
-                        "reason": "slow_typing_speed",
-                        "avg_time_ms": avg_time_ms,
-                        "min_allowed_ms": min_avg_time_ms,
-                        "sessions_evaluated": valid_sessions_count,
-                    }
-
-        return None

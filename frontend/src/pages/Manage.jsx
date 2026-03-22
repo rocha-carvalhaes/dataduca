@@ -229,6 +229,8 @@ function Manage() {
   const [submitting, setSubmitting] = useState(false);
   const [activitiesList, setActivitiesList] = useState([]);
   const [expandedRows, setExpandedRows] = useState(new Set());
+  const [evaluatingLevels, setEvaluatingLevels] = useState(false);
+  const [levelResult, setLevelResult] = useState(null);
 
   const hasCrud = CRUD_TABLES[selectedTable] !== undefined;
 
@@ -456,6 +458,21 @@ function Manage() {
     }
   };
 
+  const handleEvaluateAllLevels = async () => {
+    if (evaluatingLevels) return;
+    setEvaluatingLevels(true);
+    setLevelResult(null);
+    setError(null);
+    try {
+      const data = await api.userLevels.evaluateAllUsers();
+      setLevelResult(data);
+    } catch (err) {
+      setError(err.message || 'Erro ao reavaliar níveis');
+    } finally {
+      setEvaluatingLevels(false);
+    }
+  };
+
   // --- Render ---
 
   if (loadingTables) return <LoadingState message="Carregando tabelas..." />;
@@ -465,12 +482,71 @@ function Manage() {
 
   return (
     <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-[#333333] mb-1">Gerenciar</h1>
-        <p className="text-[#777777] text-sm">
-          Consulte as tabelas do sistema com filtros personalizados
-        </p>
+      <div className="mb-6 flex items-start justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-[#333333] mb-1">Gerenciar</h1>
+          <p className="text-[#777777] text-sm">
+            Consulte as tabelas do sistema com filtros personalizados
+          </p>
+        </div>
+        <button
+          onClick={handleEvaluateAllLevels}
+          disabled={evaluatingLevels}
+          className="mt-1 px-4 py-2 bg-[#7BC47F] text-white text-sm font-medium rounded-md hover:bg-[#5ea663] transition-colors disabled:opacity-50 flex items-center gap-2 whitespace-nowrap"
+        >
+          {evaluatingLevels ? (
+            <>
+              <Spinner /> Avaliando...
+            </>
+          ) : (
+            'Reavaliar Níveis'
+          )}
+        </button>
       </div>
+
+      {levelResult && (
+        <div className="mb-4 bg-green-50 border border-green-200 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-green-800">
+              <span className="font-semibold">Reavaliação concluída:</span>{' '}
+              {levelResult.total_evaluated} avaliação
+              {levelResult.total_evaluated !== 1 ? 'ões' : ''},{' '}
+              <span className="font-semibold text-green-700">
+                {levelResult.updated} atualizado
+                {levelResult.updated !== 1 ? 's' : ''}
+              </span>
+              {levelResult.assigned_level_one > 0 && (
+                <span className="text-blue-600">
+                  , {levelResult.assigned_level_one} nível 1 atribuído
+                  {levelResult.assigned_level_one !== 1 ? 's' : ''}
+                </span>
+              )}
+              {levelResult.errors > 0 && (
+                <span className="text-red-600">
+                  , {levelResult.errors} erro{levelResult.errors !== 1 ? 's' : ''}
+                </span>
+              )}
+            </div>
+            <button
+              onClick={() => setLevelResult(null)}
+              className="text-green-600 hover:text-green-800 text-lg leading-none"
+            >
+              &times;
+            </button>
+          </div>
+          {levelResult.results?.some((r) => r.updated) && (
+            <div className="mt-2 text-xs text-green-700 space-y-0.5">
+              {levelResult.results
+                .filter((r) => r.updated)
+                .map((r, i) => (
+                  <div key={i}>
+                    Usuário {r.user_id}, Atividade {r.activity_id}: {r.message}
+                  </div>
+                ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Seleção de tabela + Consultar + Novo */}
       <div className="bg-white rounded-lg shadow border border-[#D9D9D9] p-4 mb-4">

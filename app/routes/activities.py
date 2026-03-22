@@ -187,16 +187,16 @@ async def get_writing_params(
     """
     default_params = WritingActivityParams(
         phrases=[
-            "Olá, mundo!",
-            "O sol brilha no céu azul.",
-            "A menina lê um livro.",
-            "O gato dorme no sofá.",
-            "Eu gosto de estudar.",
-            "A chuva cai lá fora.",
-            "O pássaro canta na árvore.",
-            "Nós vamos ao parque.",
-            "Ela escreve uma carta.",
-            "O cachorro corre no jardim.",
+            "Sol",
+            "Lua",
+            "Mar",
+            "Rio",
+            "Paz",
+            "Luz",
+            "Voz",
+            "Dor",
+            "Mel",
+            "Lar",
         ],
         phrases_per_session=3,
     )
