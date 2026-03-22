@@ -114,13 +114,11 @@ async def list_users(current_user: TokenData = Depends(get_current_user)):
     try:
         conn = get_db_connection()
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute(
-                """
+            cur.execute("""
                 SELECT user_id, user_name, user_type, created_at
                 FROM users
                 ORDER BY created_at DESC
-            """
-            )
+            """)
             users = cur.fetchall()
             return [dict(user) for user in users]
     except HTTPException:

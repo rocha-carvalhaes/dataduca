@@ -84,14 +84,12 @@ async def list_activities(current_user: TokenData = Depends(get_current_user)):
     try:
         conn = get_db_connection()
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute(
-                """
+            cur.execute("""
                 SELECT activity_id, activity_name, activity_description,
                        activity_objective, activity_type, activity_icon, activity_version, updated_at
                 FROM activities
                 ORDER BY updated_at DESC
-            """
-            )
+            """)
             activities = cur.fetchall()
             return [dict(activity) for activity in activities]
     except HTTPException:

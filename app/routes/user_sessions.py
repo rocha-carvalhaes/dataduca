@@ -104,8 +104,7 @@ async def list_user_sessions(current_user: TokenData = Depends(get_current_user)
     try:
         conn = get_db_connection()
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute(
-                """
+            cur.execute("""
                 SELECT
                     us.user_session_id,
                     us.user_id,
@@ -115,8 +114,7 @@ async def list_user_sessions(current_user: TokenData = Depends(get_current_user)
                 FROM user_sessions us
                 JOIN users u ON us.user_id = u.user_id
                 ORDER BY us.initiated_at DESC
-            """
-            )
+            """)
             sessions = cur.fetchall()
             return [dict(session) for session in sessions]
     except HTTPException:

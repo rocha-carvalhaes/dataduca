@@ -75,8 +75,7 @@ async def list_documents(current_user: TokenData = Depends(get_current_user)):
     try:
         conn = get_db_connection()
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute(
-                """
+            cur.execute("""
                 SELECT
                     d.document_id,
                     d.document_name,
@@ -88,8 +87,7 @@ async def list_documents(current_user: TokenData = Depends(get_current_user)):
                 FROM documents d
                 JOIN users u ON d.created_by = u.user_id
                 ORDER BY d.updated_at DESC
-            """
-            )
+            """)
             documents = cur.fetchall()
             return [dict(doc) for doc in documents]
     except HTTPException:
