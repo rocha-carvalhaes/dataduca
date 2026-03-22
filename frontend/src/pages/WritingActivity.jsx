@@ -174,35 +174,19 @@ function WritingActivity({ onBack, activityId }) {
     e.preventDefault();
   };
 
-  const savePhraseProgress = useCallback(async () => {
-    if (!activitySessionId) return;
-    const updatedKeys = { ...allPhraseKeys, [currentPhraseIndex]: typedKeys };
-    setAllPhraseKeys(updatedKeys);
-    try {
-      await api.activitySessions.update(activitySessionId, {
-        results: { phrases_typed_keys: updatedKeys },
-      });
-    } catch (err) {
-      console.error('Erro ao salvar progresso:', err);
-    }
-  }, [activitySessionId, allPhraseKeys, currentPhraseIndex, typedKeys]);
-
-  const handleNextPhrase = useCallback(async () => {
+  const handleNextPhrase = useCallback(() => {
     if (submitting || !isComplete) return;
-    setSubmitting(true);
-    await savePhraseProgress();
 
-    const nextIndex = currentPhraseIndex + 1;
-    setCurrentPhraseIndex(nextIndex);
+    setAllPhraseKeys((prev) => ({ ...prev, [currentPhraseIndex]: typedKeys }));
+    setCurrentPhraseIndex((prev) => prev + 1);
     setUserInput('');
     setTypedKeys([]);
     setIsComplete(false);
-    setSubmitting(false);
 
     setTimeout(() => {
       if (inputRef.current) inputRef.current.focus();
     }, 100);
-  }, [submitting, isComplete, savePhraseProgress, currentPhraseIndex]);
+  }, [submitting, isComplete, currentPhraseIndex, typedKeys]);
 
   const handleGameEnd = useCallback(async () => {
     if (gameEndingRef.current || submitting) return;
