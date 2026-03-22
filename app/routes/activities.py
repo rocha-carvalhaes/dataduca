@@ -26,6 +26,10 @@ class UnscramblePhrasesParams(BaseModel):
     phrases_per_session: int  # Quantidade de frases por sessão
 
 
+class WritingActivityParams(BaseModel):
+    phrase: str  # Frase a ser digitada
+
+
 @router.get("/typing/params", response_model=TypingActivityParams)
 async def get_typing_params(
     activity_id: Optional[int] = None,
@@ -156,6 +160,65 @@ async def get_unscramble_phrases_params(
                     phrases_per_session=params.get(
                         "phrases_per_session", default_params.phrases_per_session
                     ),
+                )
+    except Exception as e:
+        logger.warning(
+            f"Erro ao buscar parâmetros personalizados: {str(e)}. "
+            "Retornando parâmetros padrão."
+        )
+    finally:
+        if conn:
+            conn.close()
+
+    # Retornar parâmetros padrão se não encontrar personalizados
+    return default_params
+
+
+@router.get("/writing/params", response_model=WritingActivityParams)
+async def get_writing_params(
+    activity_id: Optional[int] = None,
+    current_user: Optional[TokenData] = Depends(get_current_user),
+):
+    """
+    Retorna parâmetros para a atividade de escrita.
+    Se o usuário tiver parâmetros personalizados para a atividade,
+    retorna esses parâmetros. Caso contrário, retorna parâmetros padrão.
+    """
+    # Parâmetros padrão
+    default_params = WritingActivityParams(
+        phrase="Olá, mundo!",
+    )
+
+    # Se não houver activity_id, retorna padrão
+    if not activity_id:
+        return default_params
+
+    # Tentar buscar parâmetros personalizados do usuário
+    conn = None
+    try:
+        conn = get_db_connection()
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(
+                """
+                SELECT ap.level_params
+                FROM user_activity_params uap
+                JOIN activity_params ap ON uap.activity_param_id = ap.activity_param_id
+                WHERE uap.user_id = %s
+                    AND ap.activity_id = %s
+                    AND uap.active = TRUE
+                    AND ap.active = TRUE
+                ORDER BY uap.initiated_at DESC
+                LIMIT 1
+            """,
+                (current_user.user_id, activity_id),
+            )
+            result = cur.fetchone()
+
+            if result and result["level_params"]:
+                params = result["level_params"]
+                # Validar e retornar parâmetros personalizados
+                return WritingActivityParams(
+                    phrase=params.get("phrase", default_params.phrase),
                 )
     except Exception as e:
         logger.warning(

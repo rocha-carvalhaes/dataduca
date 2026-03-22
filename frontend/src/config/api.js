@@ -125,6 +125,12 @@ export const api = {
         : '/api/activities/unscramble-phrases/params';
       return api.request(url);
     },
+    async getWritingParams(activityId = null) {
+      const url = activityId
+        ? `/api/activities/writing/params?activity_id=${activityId}`
+        : '/api/activities/writing/params';
+      return api.request(url);
+    },
     async list() {
       return api.request('/api/activities/list');
     },

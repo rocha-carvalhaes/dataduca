@@ -159,6 +159,11 @@ async def evaluate_user_level(  # noqa: C901
                     recent_sessions, level_up_params, level_down_params
                 )
                 logger.info(f"Resultado avaliação desembaralhar: {evaluation}")
+            elif activity_type == "escrita":
+                evaluation = LevelEvaluator.evaluate_writing_activity(
+                    recent_sessions, level_up_params, level_down_params
+                )
+                logger.info(f"Resultado avaliação escrita: {evaluation}")
             else:
                 logger.warning(f"Tipo de atividade '{activity_type}' não suportado")
                 return LevelUpdateResponse(

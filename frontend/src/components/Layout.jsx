@@ -4,6 +4,7 @@ import Home from '../pages/Home';
 import Activities from '../pages/Activities';
 import TypingActivity from '../pages/TypingActivity';
 import UnscramblePhrases from '../pages/UnscramblePhrases';
+import WritingActivity from '../pages/WritingActivity';
 import Manage from '../pages/Manage';
 import Documents from '../pages/Documents';
 import { authStorage } from '../utils/auth';
@@ -55,6 +56,13 @@ function Layout({ onLogout }) {
         case 'desembaralhar_frases':
           return (
             <UnscramblePhrases
+              onBack={handleBackToActivities}
+              activityId={currentActivity.id}
+            />
+          );
+        case 'escrita':
+          return (
+            <WritingActivity
               onBack={handleBackToActivities}
               activityId={currentActivity.id}
             />
