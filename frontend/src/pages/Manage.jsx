@@ -509,8 +509,8 @@ function Manage() {
           <div className="flex items-center justify-between">
             <div className="text-sm text-green-800">
               <span className="font-semibold">Reavaliação concluída:</span>{' '}
-              {levelResult.total_evaluated} avaliação
-              {levelResult.total_evaluated !== 1 ? 'ões' : ''},{' '}
+              {levelResult.total_evaluated}{' '}
+              {levelResult.total_evaluated > 1 ? 'avaliações' : 'avaliação'},{' '}
               <span className="font-semibold text-green-700">
                 {levelResult.updated} atualizado
                 {levelResult.updated !== 1 ? 's' : ''}
@@ -523,7 +523,8 @@ function Manage() {
               )}
               {levelResult.errors > 0 && (
                 <span className="text-red-600">
-                  , {levelResult.errors} erro{levelResult.errors !== 1 ? 's' : ''}
+                  , {levelResult.errors} erro
+                  {levelResult.errors !== 1 ? 's' : ''}
                 </span>
               )}
             </div>
