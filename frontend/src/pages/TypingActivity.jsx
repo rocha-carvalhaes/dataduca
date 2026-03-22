@@ -515,11 +515,11 @@ function TypingActivity({ onBack, activityId }) {
 
   if (error) {
     return (
-      <div className="p-6">
-        <div className="mb-6 flex items-center justify-between">
+      <div className="px-4 pb-4">
+        <div className="sticky top-0 z-10 bg-[#F5F6F7] pt-3 pb-2 mb-2 flex items-center justify-between">
           <div>
             <BackButton onClick={onBack} />
-            <h1 className="text-3xl font-bold text-[#333333] mb-2">
+            <h1 className="text-2xl font-bold text-[#333333]">
               Digitação com Bolhas
             </h1>
           </div>
@@ -561,12 +561,12 @@ function TypingActivity({ onBack, activityId }) {
   }
 
   return (
-    <div className="p-6">
+    <div className="px-4 pb-4">
       {/* Header */}
-      <div className="mb-6 flex items-center justify-between">
+      <div className="sticky top-0 z-10 bg-[#F5F6F7] pt-3 pb-2 mb-2 flex items-center justify-between">
         <div>
           <BackButton onClick={onBack} />
-          <h1 className="text-3xl font-bold text-[#333333] mb-2">
+          <h1 className="text-2xl font-bold text-[#333333]">
             Digitação com Bolhas
           </h1>
         </div>
@@ -576,7 +576,7 @@ function TypingActivity({ onBack, activityId }) {
       <div
         ref={containerRef}
         className="relative bg-white rounded-lg border-2 border-[#D9D9D9] overflow-hidden"
-        style={{ minHeight: '500px', height: '500px' }}
+        style={{ minHeight: '350px', height: '350px' }}
       >
         {/* Progress Bar - Top Left Corner */}
         {gameStarted && totalBubbles > 0 && (

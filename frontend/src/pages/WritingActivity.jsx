@@ -230,8 +230,8 @@ function WritingActivity({ onBack, activityId }) {
 
   if (error) {
     return (
-      <div className="p-6">
-        <div className="mb-6 flex items-center justify-between">
+      <div className="px-4 pb-4">
+        <div className="sticky top-0 z-10 bg-[#F5F6F7] pt-3 pb-2 mb-2 flex items-center justify-between">
           <BackButton onClick={onBack} />
         </div>
         <div className="bg-white rounded-lg shadow border border-[#F2B8C6] p-6">
@@ -243,12 +243,12 @@ function WritingActivity({ onBack, activityId }) {
 
   if (!gameStarted) {
     return (
-      <div className="p-6">
-        <div className="mb-6 flex items-center justify-between">
+      <div className="px-4 pb-4">
+        <div className="sticky top-0 z-10 bg-[#F5F6F7] pt-3 pb-2 mb-2 flex items-center justify-between">
           <div>
             <BackButton onClick={onBack} />
-            <h1 className="text-3xl font-bold text-[#333333] mb-2">Escrita</h1>
-            <p className="text-[#777777]">
+            <h1 className="text-2xl font-bold text-[#333333]">Escrita</h1>
+            <p className="text-sm text-[#777777]">
               Digite a frase exatamente como aparece acima
             </p>
           </div>
@@ -306,31 +306,31 @@ function WritingActivity({ onBack, activityId }) {
   const firstWrongIndex = getFirstWrongIndex();
 
   return (
-    <div className="p-6">
+    <div className="px-4 pb-4">
       {/* Header */}
-      <div className="mb-6 flex items-center justify-between">
+      <div className="sticky top-0 z-10 bg-[#F5F6F7] pt-3 pb-2 mb-2 flex items-center justify-between">
         <div>
           <BackButton onClick={onBack} />
-          <h1 className="text-3xl font-bold text-[#333333] mb-2">Escrita</h1>
+          <h1 className="text-2xl font-bold text-[#333333]">Escrita</h1>
         </div>
       </div>
 
       {/* Área de Jogo */}
-      <div className="bg-white rounded-lg shadow border border-[#D9D9D9] p-8 max-w-4xl mx-auto">
+      <div className="relative bg-white rounded-lg shadow border border-[#D9D9D9] p-6 max-w-4xl mx-auto min-h-[350px]">
         {/* Frase de referência */}
-        <div className="mb-8">
-          <h3 className="text-lg font-medium text-[#333333] mb-4">
+        <div className="mb-6">
+          <h3 className="text-base font-medium text-[#333333] mb-3">
             Digite a frase abaixo:
           </h3>
-          <div className="bg-gray-50 border-2 border-[#D9D9D9] rounded-lg p-6">
-            <p className="text-2xl font-medium text-[#333333] text-center">
+          <div className="bg-gray-50 border-2 border-[#D9D9D9] rounded-lg p-4">
+            <p className="text-xl font-medium text-[#333333] text-center">
               {phrase}
             </p>
           </div>
         </div>
 
         {/* Campo de digitação */}
-        <div className="mb-6">
+        <div>
           <label
             htmlFor="user-typing-input"
             className="block text-sm font-medium text-[#333333] mb-2"
@@ -338,13 +338,11 @@ function WritingActivity({ onBack, activityId }) {
             Sua digitação:
           </label>
           <div className="relative">
-            {/* Fundo branco atrás */}
             <div
               className="absolute inset-0 bg-white rounded-lg pointer-events-none"
               style={{ zIndex: 0 }}
             />
 
-            {/* Overlay para destacar caracteres corretos (atrás do texto) */}
             {userInput.length > 0 && (
               <div
                 className="absolute top-4 left-4 pointer-events-none text-2xl font-mono whitespace-pre-wrap break-words"
@@ -383,7 +381,7 @@ function WritingActivity({ onBack, activityId }) {
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
               disabled={isComplete}
-              className="w-full min-h-[120px] p-4 text-2xl font-mono border-2 border-[#D9D9D9] rounded-lg focus:outline-none focus:border-[#E6A8D7] resize-none relative"
+              className="w-full min-h-[100px] p-4 text-2xl font-mono border-2 border-[#D9D9D9] rounded-lg focus:outline-none focus:border-[#E6A8D7] resize-none relative"
               placeholder="Comece a digitar..."
               style={{
                 caretColor: firstWrongIndex === -1 ? '#333333' : 'transparent',
@@ -395,13 +393,13 @@ function WritingActivity({ onBack, activityId }) {
           </div>
         </div>
 
-        {/* Mensagem de sucesso / salvando */}
+        {/* Overlay de conclusão */}
         {isComplete && (
-          <div className="mb-6 text-center">
+          <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-white/90 backdrop-blur-sm rounded-lg">
             {submitting ? (
-              <div className="inline-flex items-center gap-2 bg-blue-50 border-2 border-blue-200 text-blue-700 px-6 py-3 rounded-lg">
+              <div className="text-center">
                 <svg
-                  className="w-6 h-6 animate-spin"
+                  className="w-12 h-12 animate-spin text-[#E6A8D7] mx-auto mb-4"
                   viewBox="0 0 24 24"
                   fill="none"
                 >
@@ -419,49 +417,48 @@ function WritingActivity({ onBack, activityId }) {
                     d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
                   />
                 </svg>
-                <span className="font-semibold text-lg">
-                  Salvando resultados...
-                </span>
+                <p className="text-[#777777]">Salvando resultados...</p>
               </div>
             ) : (
-              <div className="inline-flex items-center gap-2 bg-green-50 border-2 border-green-200 text-green-700 px-6 py-3 rounded-lg">
-                <svg
-                  className="w-6 h-6"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
+              <>
+                <div className="text-center mb-6">
+                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#B8E3C0] mb-4">
+                    <svg
+                      className="w-10 h-10 text-[#333333]"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                  </div>
+                  <h2 className="text-2xl font-bold text-[#333333] mb-2">
+                    Frase Completa!
+                  </h2>
+                  <p className="text-[#777777]">
+                    Parabéns! Você digitou a frase corretamente.
+                  </p>
+                </div>
+                <button
+                  onClick={restartGame}
+                  disabled={submitting}
+                  className="flex items-center justify-center w-20 h-20 rounded-full bg-[#E6A8D7] hover:bg-[#d897c8] text-white shadow-lg transition-all hover:scale-110 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M5 13l4 4L19 7"
-                  />
-                </svg>
-                <span className="font-semibold text-lg">
-                  Parabéns! Você completou a frase corretamente!
-                </span>
-              </div>
+                  <svg
+                    className="w-10 h-10"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z" />
+                  </svg>
+                </button>
+              </>
             )}
-          </div>
-        )}
-
-        {/* Botão de reiniciar */}
-        {isComplete && !submitting && (
-          <div className="flex justify-center">
-            <button
-              onClick={restartGame}
-              disabled={submitting}
-              className="flex items-center justify-center w-20 h-20 rounded-full bg-[#E6A8D7] hover:bg-[#d897c8] text-white shadow-lg transition-all hover:scale-110 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
-            >
-              <svg
-                className="w-10 h-10"
-                fill="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z" />
-              </svg>
-            </button>
           </div>
         )}
       </div>

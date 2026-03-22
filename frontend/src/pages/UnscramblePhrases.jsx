@@ -346,8 +346,8 @@ function UnscramblePhrases({ onBack, activityId }) {
 
   if (error) {
     return (
-      <div className="p-6">
-        <div className="mb-6 flex items-center justify-between">
+      <div className="px-4 pb-4">
+        <div className="sticky top-0 z-10 bg-[#F5F6F7] pt-3 pb-2 mb-2 flex items-center justify-between">
           <BackButton onClick={onBack} />
         </div>
         <div className="bg-white rounded-lg shadow border border-[#F2B8C6] p-6">
@@ -359,14 +359,14 @@ function UnscramblePhrases({ onBack, activityId }) {
 
   if (!gameStarted) {
     return (
-      <div className="p-6">
-        <div className="mb-6 flex items-center justify-between">
+      <div className="px-4 pb-4">
+        <div className="sticky top-0 z-10 bg-[#F5F6F7] pt-3 pb-2 mb-2 flex items-center justify-between">
           <div>
             <BackButton onClick={onBack} />
-            <h1 className="text-3xl font-bold text-[#333333] mb-2">
+            <h1 className="text-2xl font-bold text-[#333333]">
               Desembaralhar Frases
             </h1>
-            <p className="text-[#777777]">
+            <p className="text-sm text-[#777777]">
               Organize as palavras para formar frases corretas
             </p>
           </div>
@@ -423,32 +423,32 @@ function UnscramblePhrases({ onBack, activityId }) {
   const isLastPhrase = currentPhraseIndex === selectedPhrases.length - 1;
 
   return (
-    <div className="p-6">
+    <div className="px-4 pb-4">
       {/* Header */}
-      <div className="mb-6 flex items-center justify-between">
+      <div className="sticky top-0 z-10 bg-[#F5F6F7] pt-3 pb-2 mb-2 flex items-center justify-between">
         <div>
           <BackButton onClick={onBack} />
-          <h1 className="text-3xl font-bold text-[#333333] mb-2">
+          <h1 className="text-2xl font-bold text-[#333333]">
             Desembaralhar Frases
           </h1>
         </div>
       </div>
 
       {/* Canvas de Jogo */}
-      <div className="relative bg-white rounded-lg border-2 border-[#D9D9D9] overflow-hidden min-h-[500px]">
+      <div className="relative bg-white rounded-lg border-2 border-[#D9D9D9] overflow-hidden min-h-[350px]">
         {/* Área de ordenação com drag and drop */}
         {!gameCompleted && (
-          <div className="p-8">
-            <div className="mb-6 text-center">
-              <div className="text-sm text-[#6E6E6E] mb-2">
+          <div className="p-5">
+            <div className="mb-3 text-center">
+              <div className="text-sm text-[#6E6E6E] mb-1">
                 Frase {currentPhraseIndex + 1} de {selectedPhrases.length}
               </div>
             </div>
-            <h3 className="text-lg font-medium text-[#333333] mb-6 text-center">
+            <h3 className="text-base font-medium text-[#333333] mb-4 text-center">
               Arraste as palavras para ordenar a frase
             </h3>
 
-            <div className="flex flex-wrap gap-3 justify-center items-center min-h-[120px]">
+            <div className="flex flex-wrap gap-3 justify-center items-center min-h-[100px]">
               {currentPhraseWords.map((word, index) => (
                 <div
                   key={`word-${word}-${index}`}
@@ -475,8 +475,8 @@ function UnscramblePhrases({ onBack, activityId }) {
 
             {/* Mensagem de sucesso */}
             {isCorrect && (
-              <div className="mt-6 text-center">
-                <div className="inline-flex items-center gap-2 bg-green-50 border-2 border-green-200 text-green-700 px-6 py-3 rounded-lg">
+              <div className="mt-4 text-center">
+                <div className="inline-flex items-center gap-2 bg-green-50 border-2 border-green-200 text-green-700 px-4 py-2 rounded-lg">
                   <svg
                     className="w-6 h-6"
                     fill="none"
@@ -499,7 +499,7 @@ function UnscramblePhrases({ onBack, activityId }) {
 
             {/* Botão para próxima frase (só aparece quando correto) */}
             {isCorrect && (
-              <div className="flex justify-center mt-6">
+              <div className="flex justify-center mt-4">
                 <button
                   onClick={nextPhrase}
                   disabled={submitting}
