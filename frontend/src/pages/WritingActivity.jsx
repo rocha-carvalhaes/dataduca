@@ -11,8 +11,10 @@ function WritingActivity({ onBack, activityId }) {
   const [activitySessionId, setActivitySessionId] = useState(null);
   const [typedKeys, setTypedKeys] = useState([]);
   const [isComplete, setIsComplete] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const inputRef = useRef(null);
   const loadedRef = useRef(false);
+  const gameEndingRef = useRef(false);
 
   // Função para carregar parâmetros da API
   const loadParams = useCallback(async () => {
@@ -45,8 +47,9 @@ function WritingActivity({ onBack, activityId }) {
 
   // Iniciar jogo
   const startGame = useCallback(async () => {
+    if (submitting) return;
+    setSubmitting(true);
     try {
-      // Criar sessão de atividade
       const session = await api.activitySessions.create({
         activity_id: activityId,
         results: {
@@ -55,13 +58,12 @@ function WritingActivity({ onBack, activityId }) {
       });
       setActivitySessionId(session.activity_session_id);
 
-      // Resetar estados
       setUserInput('');
       setTypedKeys([]);
       setIsComplete(false);
+      gameEndingRef.current = false;
       setGameStarted(true);
 
-      // Focar no input
       setTimeout(() => {
         if (inputRef.current) {
           inputRef.current.focus();
@@ -70,8 +72,10 @@ function WritingActivity({ onBack, activityId }) {
     } catch (err) {
       console.error('Erro ao iniciar jogo:', err);
       setError('Erro ao iniciar atividade');
+    } finally {
+      setSubmitting(false);
     }
-  }, [activityId]);
+  }, [activityId, submitting]);
 
   // Função para verificar se um caractere está correto
   const isCharCorrect = (index) => {
@@ -184,9 +188,11 @@ function WritingActivity({ onBack, activityId }) {
 
   // Finalizar jogo
   const handleGameEnd = useCallback(async () => {
+    if (gameEndingRef.current) return;
+    gameEndingRef.current = true;
+    setSubmitting(true);
     if (activitySessionId) {
       try {
-        // Atualizar sessão com resultados finais e data de término
         await api.activitySessions.update(activitySessionId, {
           results: {
             typed_keys: typedKeys,
@@ -197,20 +203,26 @@ function WritingActivity({ onBack, activityId }) {
         console.error('Erro ao finalizar sessão:', err);
       }
     }
+    setSubmitting(false);
   }, [activitySessionId, typedKeys]);
 
   // Função para reiniciar o jogo
   const restartGame = useCallback(async () => {
-    // Resetar todos os estados do jogo
+    if (submitting) return;
+    setSubmitting(true);
     setGameStarted(false);
     setIsComplete(false);
     setUserInput('');
     setTypedKeys([]);
     setActivitySessionId(null);
+    gameEndingRef.current = false;
 
-    // Recarregar parâmetros para pegar possíveis mudanças de nível
-    await loadParams();
-  }, [loadParams]);
+    try {
+      await loadParams();
+    } finally {
+      setSubmitting(false);
+    }
+  }, [loadParams, submitting]);
 
   if (loading) {
     return <LoadingState message="Carregando atividade..." spinner />;
@@ -251,15 +263,38 @@ function WritingActivity({ onBack, activityId }) {
             <div className="flex items-center justify-center">
               <button
                 onClick={startGame}
-                className="flex items-center justify-center w-20 h-20 rounded-full bg-[#E6A8D7] hover:bg-[#d897c8] text-white shadow-lg transition-all hover:scale-110"
+                disabled={submitting}
+                className="flex items-center justify-center w-20 h-20 rounded-full bg-[#E6A8D7] hover:bg-[#d897c8] text-white shadow-lg transition-all hover:scale-110 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
               >
-                <svg
-                  className="w-10 h-10"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M8 5v14l11-7z" />
-                </svg>
+                {submitting ? (
+                  <svg
+                    className="w-8 h-8 animate-spin"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                    />
+                  </svg>
+                ) : (
+                  <svg
+                    className="w-10 h-10"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+                )}
               </button>
             </div>
           </div>
@@ -360,36 +395,64 @@ function WritingActivity({ onBack, activityId }) {
           </div>
         </div>
 
-        {/* Mensagem de sucesso */}
+        {/* Mensagem de sucesso / salvando */}
         {isComplete && (
           <div className="mb-6 text-center">
-            <div className="inline-flex items-center gap-2 bg-green-50 border-2 border-green-200 text-green-700 px-6 py-3 rounded-lg">
-              <svg
-                className="w-6 h-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M5 13l4 4L19 7"
-                />
-              </svg>
-              <span className="font-semibold text-lg">
-                Parabéns! Você completou a frase corretamente!
-              </span>
-            </div>
+            {submitting ? (
+              <div className="inline-flex items-center gap-2 bg-blue-50 border-2 border-blue-200 text-blue-700 px-6 py-3 rounded-lg">
+                <svg
+                  className="w-6 h-6 animate-spin"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                  />
+                </svg>
+                <span className="font-semibold text-lg">
+                  Salvando resultados...
+                </span>
+              </div>
+            ) : (
+              <div className="inline-flex items-center gap-2 bg-green-50 border-2 border-green-200 text-green-700 px-6 py-3 rounded-lg">
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+                <span className="font-semibold text-lg">
+                  Parabéns! Você completou a frase corretamente!
+                </span>
+              </div>
+            )}
           </div>
         )}
 
         {/* Botão de reiniciar */}
-        {isComplete && (
+        {isComplete && !submitting && (
           <div className="flex justify-center">
             <button
               onClick={restartGame}
-              className="flex items-center justify-center w-20 h-20 rounded-full bg-[#E6A8D7] hover:bg-[#d897c8] text-white shadow-lg transition-all hover:scale-110"
+              disabled={submitting}
+              className="flex items-center justify-center w-20 h-20 rounded-full bg-[#E6A8D7] hover:bg-[#d897c8] text-white shadow-lg transition-all hover:scale-110 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
             >
               <svg
                 className="w-10 h-10"

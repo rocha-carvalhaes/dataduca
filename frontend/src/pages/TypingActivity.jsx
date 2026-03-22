@@ -14,6 +14,7 @@ function TypingActivity({ onBack, activityId }) {
   const [generatedBubbles, setGeneratedBubbles] = useState([]); // Track all bubbles generated in the game
   const [hitBubbles, setHitBubbles] = useState([]); // Track bubbles that the user hit
   const [activitySessionId, setActivitySessionId] = useState(null); // ID da sessão de atividade
+  const [submitting, setSubmitting] = useState(false);
   const hitBubblesRef = useRef(new Set()); // Use Set to avoid duplicates
   const intervalRef = useRef(null);
   const animationRef = useRef(null);
@@ -101,18 +102,19 @@ function TypingActivity({ onBack, activityId }) {
 
   // Function to start the game
   const startGame = useCallback(async () => {
-    if (totalBubbles <= 0 || characters.length === 0) return;
+    if (totalBubbles <= 0 || characters.length === 0 || submitting) return;
 
-    // Criar sessão de atividade no backend
+    setSubmitting(true);
     try {
       const session = await api.activitySessions.create({
         activity_id: activityId,
-        results: {}, // Inicialmente vazio, será preenchido no fim
+        results: {},
       });
       setActivitySessionId(session.activity_session_id);
     } catch (err) {
       console.error('Erro ao criar sessão de atividade:', err);
-      // Continua o jogo mesmo se falhar ao criar a sessão
+    } finally {
+      setSubmitting(false);
     }
 
     setGameStarted(true);
@@ -140,7 +142,14 @@ function TypingActivity({ onBack, activityId }) {
       }, i * intervalTime);
       scheduledTimeoutsRef.current.push(timeoutId);
     }
-  }, [totalBubbles, characters.length, speed, addCharacter, activityId]);
+  }, [
+    totalBubbles,
+    characters.length,
+    speed,
+    addCharacter,
+    activityId,
+    submitting,
+  ]);
 
   // Function to load parameters from API
   const loadParams = useCallback(async () => {
@@ -193,6 +202,8 @@ function TypingActivity({ onBack, activityId }) {
 
   // Function to restart the game
   const restartGame = useCallback(async () => {
+    if (submitting) return;
+    setSubmitting(true);
     setGameStarted(false);
     setBubbles([]);
     setGeneratedCharacters([]);
@@ -221,14 +232,18 @@ function TypingActivity({ onBack, activityId }) {
     }
 
     // Recarregar parâmetros para pegar possíveis mudanças de nível
-    await loadParams();
-  }, [loadParams]);
+    try {
+      await loadParams();
+    } finally {
+      setSubmitting(false);
+    }
+  }, [loadParams, submitting]);
 
   // Game end event
   const handleGameEnd = useCallback(async () => {
-    // Avoid multiple events
     if (gameFinishedRef.current) return;
     gameFinishedRef.current = true;
+    setSubmitting(true);
 
     // Prepare game data for backend submission
     // Converter timestamps para ISO string
@@ -276,6 +291,7 @@ function TypingActivity({ onBack, activityId }) {
     } else {
       console.warn('⚠️ Nenhuma sessão de atividade encontrada para atualizar');
     }
+    setSubmitting(false);
   }, [totalBubbles, generatedBubbles, hitBubbles, activitySessionId]);
 
   // Detect when game is finished
@@ -585,63 +601,114 @@ function TypingActivity({ onBack, activityId }) {
           <div className="absolute inset-0 flex items-center justify-center z-10">
             <button
               onClick={startGame}
-              className="flex items-center justify-center w-20 h-20 rounded-full bg-[#E6A8D7] hover:bg-[#d897c8] text-white shadow-lg transition-all hover:scale-110"
+              disabled={submitting}
+              className="flex items-center justify-center w-20 h-20 rounded-full bg-[#E6A8D7] hover:bg-[#d897c8] text-white shadow-lg transition-all hover:scale-110 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
             >
-              <svg
-                className="w-10 h-10"
-                fill="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path d="M8 5v14l11-7z" />
-              </svg>
+              {submitting ? (
+                <svg
+                  className="w-8 h-8 animate-spin"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                  />
+                </svg>
+              ) : (
+                <svg
+                  className="w-10 h-10"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M8 5v14l11-7z" />
+                </svg>
+              )}
             </button>
           </div>
         )}
 
         {gameStatus === 'Finalizado' && (
           <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-white/90 backdrop-blur-sm">
-            <div className="text-center mb-6">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#B8E3C0] mb-4">
+            {submitting ? (
+              <div className="text-center">
                 <svg
-                  className="w-10 h-10 text-[#333333]"
-                  fill="none"
-                  stroke="currentColor"
+                  className="w-12 h-12 animate-spin text-[#E6A8D7] mx-auto mb-4"
                   viewBox="0 0 24 24"
+                  fill="none"
                 >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
                   <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M5 13l4 4L19 7"
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
                   />
                 </svg>
+                <p className="text-[#777777]">Salvando resultados...</p>
               </div>
-              <h2 className="text-2xl font-bold text-[#333333] mb-2">
-                Jogo Finalizado!
-              </h2>
-              <p className="text-[#777777] mb-2">
-                Você acertou {hitBubbles.length} de {totalBubbles} bolhas
-              </p>
-              <p className="text-[#777777]">
-                Taxa de acerto:{' '}
-                {totalBubbles > 0
-                  ? ((hitBubbles.length / totalBubbles) * 100).toFixed(1)
-                  : 0}
-                %
-              </p>
-            </div>
-            <button
-              onClick={restartGame}
-              className="flex items-center justify-center w-20 h-20 rounded-full bg-[#E6A8D7] hover:bg-[#d897c8] text-white shadow-lg transition-all hover:scale-110"
-            >
-              <svg
-                className="w-10 h-10"
-                fill="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z" />
-              </svg>
-            </button>
+            ) : (
+              <>
+                <div className="text-center mb-6">
+                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#B8E3C0] mb-4">
+                    <svg
+                      className="w-10 h-10 text-[#333333]"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                  </div>
+                  <h2 className="text-2xl font-bold text-[#333333] mb-2">
+                    Jogo Finalizado!
+                  </h2>
+                  <p className="text-[#777777] mb-2">
+                    Você acertou {hitBubbles.length} de {totalBubbles} bolhas
+                  </p>
+                  <p className="text-[#777777]">
+                    Taxa de acerto:{' '}
+                    {totalBubbles > 0
+                      ? ((hitBubbles.length / totalBubbles) * 100).toFixed(1)
+                      : 0}
+                    %
+                  </p>
+                </div>
+                <button
+                  onClick={restartGame}
+                  disabled={submitting}
+                  className="flex items-center justify-center w-20 h-20 rounded-full bg-[#E6A8D7] hover:bg-[#d897c8] text-white shadow-lg transition-all hover:scale-110 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
+                >
+                  <svg
+                    className="w-10 h-10"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z" />
+                  </svg>
+                </button>
+              </>
+            )}
           </div>
         )}
 

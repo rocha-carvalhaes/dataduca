@@ -18,7 +18,9 @@ function UnscramblePhrases({ onBack, activityId }) {
   const [isCorrect, setIsCorrect] = useState(false);
   const [gameCompleted, setGameCompleted] = useState(false);
   const [movementHistory, setMovementHistory] = useState([]); // Histórico de movimentos da frase atual
+  const [submitting, setSubmitting] = useState(false);
   const loadedRef = useRef(false);
+  const gameEndingRef = useRef(false);
 
   // Função para carregar parâmetros da API
   const loadParams = useCallback(async () => {
@@ -103,8 +105,9 @@ function UnscramblePhrases({ onBack, activityId }) {
 
   // Iniciar jogo
   const startGame = useCallback(async () => {
+    if (submitting) return;
+    setSubmitting(true);
     try {
-      // Criar sessão de atividade
       const session = await api.activitySessions.create({
         activity_id: activityId,
         results: {
@@ -114,11 +117,9 @@ function UnscramblePhrases({ onBack, activityId }) {
       });
       setActivitySessionId(session.activity_session_id);
 
-      // Selecionar frases aleatórias
       const selected = selectRandomPhrases();
       setSelectedPhrases(selected);
 
-      // Preparar primeira frase
       const firstPhrase = selected[0];
       const words = firstPhrase.split(' ');
       const shuffledWords = shuffleArray(words);
@@ -127,7 +128,7 @@ function UnscramblePhrases({ onBack, activityId }) {
       setCurrentPhraseIndex(0);
       setIsCorrect(false);
       hasUpdatedSessionRef.current = false;
-      // Iniciar histórico com estado inicial
+      gameEndingRef.current = false;
       setMovementHistory([
         {
           timestamp: new Date().toISOString(),
@@ -138,8 +139,10 @@ function UnscramblePhrases({ onBack, activityId }) {
     } catch (err) {
       console.error('Erro ao iniciar jogo:', err);
       setError('Erro ao iniciar atividade');
+    } finally {
+      setSubmitting(false);
     }
-  }, [activityId, selectRandomPhrases]);
+  }, [activityId, selectRandomPhrases, submitting]);
 
   // Verificar se a frase está correta (validação automática)
   const hasUpdatedSessionRef = useRef(false);
@@ -204,34 +207,33 @@ function UnscramblePhrases({ onBack, activityId }) {
 
   // Finalizar jogo
   const handleGameEnd = useCallback(async () => {
+    if (gameEndingRef.current) return;
+    gameEndingRef.current = true;
+    setSubmitting(true);
     if (activitySessionId) {
       try {
-        // Buscar resultados atuais da sessão
         const session = await api.activitySessions.get(activitySessionId);
         const currentResults = session.results || {
           phrases: [],
           movement_history: {},
         };
 
-        // Atualizar sessão com resultados finais e data de término
         await api.activitySessions.update(activitySessionId, {
           results: currentResults,
           ended_at: new Date().toISOString(),
         });
-        setGameCompleted(true);
       } catch (err) {
         console.error('Erro ao finalizar sessão:', err);
-        // Mesmo com erro, mostra a tela de finalização
-        setGameCompleted(true);
       }
-    } else {
-      setGameCompleted(true);
     }
+    setSubmitting(false);
+    setGameCompleted(true);
   }, [activitySessionId]);
 
   // Função para reiniciar o jogo
   const restartGame = useCallback(async () => {
-    // Resetar todos os estados do jogo
+    if (submitting) return;
+    setSubmitting(true);
     setGameStarted(false);
     setGameCompleted(false);
     setSelectedPhrases([]);
@@ -242,14 +244,18 @@ function UnscramblePhrases({ onBack, activityId }) {
     setActivitySessionId(null);
     setMovementHistory([]);
     hasUpdatedSessionRef.current = false;
+    gameEndingRef.current = false;
 
-    // Recarregar parâmetros para pegar possíveis mudanças de nível
-    await loadParams();
-  }, [loadParams]);
+    try {
+      await loadParams();
+    } finally {
+      setSubmitting(false);
+    }
+  }, [loadParams, submitting]);
 
   // Avançar para próxima frase
   const nextPhrase = useCallback(() => {
-    if (!isCorrect) return;
+    if (!isCorrect || submitting) return;
 
     // Se há mais frases
     if (currentPhraseIndex < selectedPhrases.length - 1) {
@@ -273,7 +279,13 @@ function UnscramblePhrases({ onBack, activityId }) {
       // Última frase completada
       handleGameEnd();
     }
-  }, [isCorrect, currentPhraseIndex, selectedPhrases, handleGameEnd]);
+  }, [
+    isCorrect,
+    currentPhraseIndex,
+    selectedPhrases,
+    handleGameEnd,
+    submitting,
+  ]);
 
   // Drag and Drop handlers
   const handleDragStart = (e, index) => {
@@ -368,15 +380,38 @@ function UnscramblePhrases({ onBack, activityId }) {
             <div className="flex items-center justify-center">
               <button
                 onClick={startGame}
-                className="flex items-center justify-center w-20 h-20 rounded-full bg-[#E6A8D7] hover:bg-[#d897c8] text-white shadow-lg transition-all hover:scale-110"
+                disabled={submitting}
+                className="flex items-center justify-center w-20 h-20 rounded-full bg-[#E6A8D7] hover:bg-[#d897c8] text-white shadow-lg transition-all hover:scale-110 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
               >
-                <svg
-                  className="w-10 h-10"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M8 5v14l11-7z" />
-                </svg>
+                {submitting ? (
+                  <svg
+                    className="w-8 h-8 animate-spin"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                    />
+                  </svg>
+                ) : (
+                  <svg
+                    className="w-10 h-10"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+                )}
               </button>
             </div>
           </div>
@@ -467,9 +502,37 @@ function UnscramblePhrases({ onBack, activityId }) {
               <div className="flex justify-center mt-6">
                 <button
                   onClick={nextPhrase}
-                  className="px-8 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors font-medium text-lg shadow-lg"
+                  disabled={submitting}
+                  className="px-8 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors font-medium text-lg shadow-lg disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  {isLastPhrase ? 'Finalizar Atividade' : 'Próxima Frase →'}
+                  {submitting ? (
+                    <span className="inline-flex items-center gap-2">
+                      <svg
+                        className="w-5 h-5 animate-spin"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        />
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                        />
+                      </svg>
+                      Salvando...
+                    </span>
+                  ) : isLastPhrase ? (
+                    'Finalizar Atividade'
+                  ) : (
+                    'Próxima Frase →'
+                  )}
                 </button>
               </div>
             )}
@@ -504,15 +567,38 @@ function UnscramblePhrases({ onBack, activityId }) {
             </div>
             <button
               onClick={restartGame}
-              className="flex items-center justify-center w-20 h-20 rounded-full bg-[#E6A8D7] hover:bg-[#d897c8] text-white shadow-lg transition-all hover:scale-110"
+              disabled={submitting}
+              className="flex items-center justify-center w-20 h-20 rounded-full bg-[#E6A8D7] hover:bg-[#d897c8] text-white shadow-lg transition-all hover:scale-110 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
             >
-              <svg
-                className="w-10 h-10"
-                fill="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z" />
-              </svg>
+              {submitting ? (
+                <svg
+                  className="w-8 h-8 animate-spin"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                  />
+                </svg>
+              ) : (
+                <svg
+                  className="w-10 h-10"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z" />
+                </svg>
+              )}
             </button>
           </div>
         )}
