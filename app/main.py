@@ -17,13 +17,28 @@ from app.routes import (
 from app.core.config import settings
 
 
+def _normalize_origin(origin: str) -> str:
+    """Origin não pode ter barra final; o browser envia sem (ex.: https://app.vercel.app)."""
+    return origin.strip().rstrip("/")
+
+
 def _resolve_cors_origins():
-    if settings.DEBUG:
-        return ["*"]
     raw = (settings.CORS_ORIGINS or "").strip()
-    if raw:
-        return [o.strip() for o in raw.split(",") if o.strip()]
-    return ["http://localhost:5173"]
+    from_env = [_normalize_origin(o) for o in raw.split(",") if o.strip()]
+    dev_origins = ["http://localhost:5173", "http://127.0.0.1:5173"]
+
+    if settings.DEBUG:
+        seen: set[str] = set()
+        merged: list[str] = []
+        for o in dev_origins + from_env:
+            if o and o not in seen:
+                seen.add(o)
+                merged.append(o)
+        return merged if merged else dev_origins
+
+    if from_env:
+        return from_env
+    return dev_origins
 
 
 # Cria a instância da aplicação FastAPI
@@ -33,11 +48,12 @@ app = FastAPI(
     debug=settings.DEBUG,
 )
 
-# CORS: em produção defina CORS_ORIGINS (ex.: URL do front)
+# CORS: com Bearer no header (sem cookies), allow_credentials=False evita conflito com
+# allow_origins=["*"] e permite preflight válido. Em produção use CORS_ORIGINS (sem / no final).
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_resolve_cors_origins(),
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

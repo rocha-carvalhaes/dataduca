@@ -2,6 +2,12 @@
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
+if (import.meta.env.PROD && !import.meta.env.VITE_API_BASE_URL) {
+  console.error(
+    '[Dataduca] VITE_API_BASE_URL não foi definida no build. Configure na Vercel (Environment Variables) e faça um novo deploy.'
+  );
+}
+
 export const api = {
   baseURL: API_BASE_URL,
 
