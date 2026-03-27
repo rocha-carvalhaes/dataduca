@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routes import (
@@ -16,10 +18,18 @@ from app.routes import (
 )
 from app.core.config import settings
 
+logger = logging.getLogger(__name__)
+
+# Qualquer deploy em *.vercel.app (produção ou preview), além da lista explícita em CORS_ORIGINS.
+_VERCEL_APP_ORIGIN_REGEX = r"https://[a-zA-Z0-9][a-zA-Z0-9.-]*\.vercel\.app"
+
 
 def _normalize_origin(origin: str) -> str:
-    """Origin não pode ter barra final; o browser envia sem (ex.: https://app.vercel.app)."""
-    return origin.strip().rstrip("/")
+    """Origin sem barra final; remove aspas que às vezes vêm coladas na variável do Railway."""
+    o = origin.strip().rstrip("/")
+    if len(o) >= 2 and o[0] == o[-1] and o[0] in "\"'":
+        o = o[1:-1].strip().rstrip("/")
+    return o
 
 
 def _resolve_cors_origins():
@@ -41,6 +51,8 @@ def _resolve_cors_origins():
     return dev_origins
 
 
+_cors_allow_origins = _resolve_cors_origins()
+
 # Cria a instância da aplicação FastAPI
 app = FastAPI(
     title=settings.APP_NAME,
@@ -48,15 +60,25 @@ app = FastAPI(
     debug=settings.DEBUG,
 )
 
-# CORS: com Bearer no header (sem cookies), allow_credentials=False evita conflito com
-# allow_origins=["*"] e permite preflight válido. Em produção use CORS_ORIGINS (sem / no final).
+# CORS: Bearer sem cookies → allow_credentials=False. Lista explícita + regex Vercel (previews).
+# CORS_ORIGINS no Railway: sem aspas, sem barra no final (ex.: https://dataduca.vercel.app).
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_resolve_cors_origins(),
+    allow_origins=_cors_allow_origins,
+    allow_origin_regex=_VERCEL_APP_ORIGIN_REGEX,
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.on_event("startup")
+async def _log_cors_on_startup():
+    logger.info(
+        "CORS allow_origins=%s allow_origin_regex=%s",
+        _cors_allow_origins,
+        _VERCEL_APP_ORIGIN_REGEX,
+    )
 
 # Inclui os routers
 app.include_router(health_check.router)

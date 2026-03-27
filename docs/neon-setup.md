@@ -1,5 +1,7 @@
 # Neon PostgreSQL — Setup e migração (Dataduca)
 
+Para **subir o ambiente de desenvolvimento** (API + front + Neon), use primeiro [dev-local.md](./dev-local.md). Este arquivo foca em **migração**, **restore** e detalhes (IPv4, pooler, etc.).
+
 Este documento descreve como usar o **Neon** como banco PostgreSQL do projeto e como migrar dados a partir do **Google Cloud SQL**. O projeto migrou do GCP porque o custo para desenvolvimento era alto (da ordem de **~US$ 0,50/dia** na instância que usávamos); os scripts antigos do Cloud SQL estão em [`scripts/legacy/cloud-sql/`](../scripts/legacy/cloud-sql/README.md).
 
 O backend ([`app/routes/auth.py`](../app/routes/auth.py)) aceita `DATABASE_URL`; não é necessário alterar código para conectar ao Neon.

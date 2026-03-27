@@ -20,7 +20,7 @@ O backend FastAPI usa o [`Dockerfile`](../Dockerfile) na raiz do repositório (`
 | `DATABASE_URL` | Connection string do Neon. |
 | `JWT_SECRET_KEY` | Chave forte e aleatória. |
 | `DEBUG` | `false` |
-| `CORS_ORIGINS` | Origens separadas por vírgula, ex.: `https://seu-front.vercel.app` (sem `/` no final). Inclua depois a URL pública gerada pelo Railway para testar a API no browser, se necessário. |
+| `CORS_ORIGINS` | Opcional para Vercel: qualquer `https://*.vercel.app` já é aceito pelo backend. Use para **domínio próprio** ou extras, separados por vírgula, **sem aspas** e **sem `/` no final** (aspas quebram o preflight). |
 
 5. **Settings** → **Networking** → **Generate domain** (HTTPS).
 6. Faça o deploy e confira os logs. Health check: `GET /health`.
@@ -33,7 +33,7 @@ O `CMD` do Dockerfile usa `uvicorn ... --port ${PORT:-8000}`. O Railway define `
 
 No build do Vite (front na **Vercel**), configure `VITE_API_BASE_URL` com a URL HTTPS desta API, **sem** barra no final. Passo a passo: [deploy-vercel.md](./deploy-vercel.md).
 
-Depois do deploy do front, coloque o domínio da Vercel em `CORS_ORIGINS` no Railway.
+Com domínio `*.vercel.app`, `CORS_ORIGINS` pode ficar vazio. Com domínio customizado na Vercel, defina esse domínio em `CORS_ORIGINS`.
 
 O Railway **detecta automaticamente** um `Dockerfile` na raiz do repositório. Se precisar de outro caminho, defina a variável `RAILWAY_DOCKERFILE_PATH` no serviço (veja [documentação](https://docs.railway.app/builds/dockerfiles)).
 

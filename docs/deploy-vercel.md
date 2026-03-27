@@ -19,8 +19,9 @@ O front é **Vite + React** na pasta [`frontend/`](../frontend). A URL da API ve
    - **Output Directory:** `dist` (padrão do Vite).
 
 3. **Environment Variables** (Production / Preview):
-   - `VITE_API_BASE_URL` = URL HTTPS do backend no Railway, **sem** `/` no final.  
-     Ex.: `https://dataduca-production-xxxx.up.railway.app`
+   - `VITE_API_BASE_URL` = URL **completa** do backend, **obrigatoriamente** com `https://` no início e **sem** `/` no final.  
+     Ex.: `https://dataduca-production.up.railway.app`  
+     **Não** use só o hostname (`dataduca-production.up.railway.app`): o navegador interpreta como caminho no site da Vercel e o login quebra (405).
 
 4. Faça **Deploy**. A cada push na branch conectada, a Vercel gera novo build.
 
