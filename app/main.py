@@ -16,6 +16,16 @@ from app.routes import (
 )
 from app.core.config import settings
 
+
+def _resolve_cors_origins():
+    if settings.DEBUG:
+        return ["*"]
+    raw = (settings.CORS_ORIGINS or "").strip()
+    if raw:
+        return [o.strip() for o in raw.split(",") if o.strip()]
+    return ["http://localhost:5173"]
+
+
 # Cria a instância da aplicação FastAPI
 app = FastAPI(
     title=settings.APP_NAME,
@@ -23,12 +33,10 @@ app = FastAPI(
     debug=settings.DEBUG,
 )
 
-# Configura CORS para permitir requisições do frontend
-# Em desenvolvimento, permite qualquer porta do localhost
+# CORS: em produção defina CORS_ORIGINS (ex.: URL do front)
 app.add_middleware(
     CORSMiddleware,
-    # Em produção, usar origem específica
-    allow_origins=["*"] if settings.DEBUG else ["http://localhost:5173"],
+    allow_origins=_resolve_cors_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

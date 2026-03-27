@@ -187,7 +187,7 @@ pg_restore -h 127.0.0.1 -p 5433 -U dataduca_user -d dataduca -F c --no-owner --n
 
 ## Próximos passos (quando for deployar o backend)
 
-Para conectar de serviços externos como Render, Railway, etc.:
+Para conectar de serviços externos (Railway, etc.):
 
 1. Habilitar IP público (já habilitado: `34.95.137.196`).
 2. Autorizar o IP do serviço de hospedagem:

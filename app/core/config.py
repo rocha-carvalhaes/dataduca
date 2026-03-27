@@ -15,6 +15,10 @@ class Settings(BaseSettings):
     DB_PASSWORD: str = "postgres"
     DATABASE_URL: str | None = None
 
+    # Produção (DEBUG=false): origens CORS separadas por vírgula
+    # Ex.: "https://meu-front.vercel.app,https://outro.com"
+    CORS_ORIGINS: str = ""
+
     # Boa prática para carregar as variáveis de ambiente
     # Sobrescreve as variáveis declaradas acima caso necessário
     class Config:
