@@ -1,3 +1,4 @@
+# Legado: desliga instância Cloud SQL. Com Neon não é necessário (ver docs/neon-setup.md).
 . "$PSScriptRoot\db-config.ps1"
 
 Write-Host "Desligando instancia Cloud SQL '$INSTANCE_NAME'..." -ForegroundColor Cyan

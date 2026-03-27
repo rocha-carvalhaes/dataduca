@@ -31,3 +31,6 @@ Thumbs.db
 *.bak
 *.backup
 *.dump
+
+# Credenciais só para pg_restore no Neon (copie de neon-restore.env.example)
+scripts/neon-restore.env

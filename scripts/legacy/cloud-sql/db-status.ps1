@@ -1,3 +1,4 @@
+# Legado: status da instância Cloud SQL (ver docs/neon-setup.md para Neon).
 . "$PSScriptRoot\db-config.ps1"
 
 Write-Host "Verificando status da instancia '$INSTANCE_NAME'..." -ForegroundColor Cyan

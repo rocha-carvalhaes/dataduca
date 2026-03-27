@@ -1,3 +1,4 @@
+# Legado: Cloud SQL Auth Proxy. Com Neon use DATABASE_URL direto (ver docs/neon-setup.md).
 . "$PSScriptRoot\db-config.ps1"
 
 $proxyPath = "$env:LOCALAPPDATA\Google\Cloud SDK\google-cloud-sdk\bin\cloud-sql-proxy.exe"

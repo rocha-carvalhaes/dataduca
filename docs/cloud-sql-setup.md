@@ -1,8 +1,10 @@
 # Cloud SQL PostgreSQL — Setup e Operação
 
+> **Legado:** o banco do Dataduca foi migrado para **[Neon](https://neon.tech)** (o custo no GCP para desenvolvimento era alto — da ordem de **~US$ 0,50/dia** na configuração que usávamos). A configuração atual está em **[neon-setup.md](./neon-setup.md)**. Os scripts GCP foram movidos para **[scripts/legacy/cloud-sql/](../scripts/legacy/cloud-sql/)** (veja o `README` dessa pasta). Este arquivo permanece como referência histórica da instância Cloud SQL no GCP, se ainda existir.
+
 ## Visão geral
 
-O banco de dados PostgreSQL do Dataduca está hospedado no **Google Cloud SQL**, dentro do projeto GCP `dataduca`. A conexão local é feita via **Cloud SQL Auth Proxy**, que cria um túnel seguro sem necessidade de expor IPs ou gerenciar certificados SSL manualmente.
+O banco de dados PostgreSQL do Dataduca **pode ter estado** hospedado no **Google Cloud SQL**, dentro do projeto GCP `dataduca`. A conexão local é feita via **Cloud SQL Auth Proxy**, que cria um túnel seguro sem necessidade de expor IPs ou gerenciar certificados SSL manualmente.
 
 ### Dados da instância
 
@@ -45,7 +47,7 @@ O banco de dados PostgreSQL do Dataduca está hospedado no **Google Cloud SQL**,
 ### 1. Ligar a instância
 
 ```powershell
-.\scripts\db-start.ps1
+.\scripts\legacy\cloud-sql\db-start.ps1
 ```
 
 Aguarde ~1-2 minutos até a instância ficar `RUNNABLE`.
@@ -55,7 +57,7 @@ Aguarde ~1-2 minutos até a instância ficar `RUNNABLE`.
 Em um terminal separado (mantenha-o aberto):
 
 ```powershell
-.\scripts\db-proxy.ps1
+.\scripts\legacy\cloud-sql\db-proxy.ps1
 ```
 
 O proxy conecta o Cloud SQL em `localhost:5433`.
@@ -74,37 +76,40 @@ O backend já está configurado para usar a `DATABASE_URL` do `.env`, que aponta
 2. Desligue a instância:
 
 ```powershell
-.\scripts\db-stop.ps1
+.\scripts\legacy\cloud-sql\db-stop.ps1
 ```
 
 ### Verificar status
 
 ```powershell
-.\scripts\db-status.ps1
+.\scripts\legacy\cloud-sql\db-status.ps1
 ```
 
 ---
 
 ## Scripts disponíveis
 
-Todos os scripts ficam na pasta `scripts/` e existem em versão PowerShell (`.ps1`) e Bash (`.sh`).
+Os scripts ficam em **`scripts/legacy/cloud-sql/`** (PowerShell `.ps1` e Bash `.sh`).
 
-| Script | Descrição |
+| Script (em `scripts/legacy/cloud-sql/`) | Descrição |
 |---|---|
 | `db-config.ps1` / `db-config.sh` | Variáveis de configuração (projeto, instância, região, porta) |
 | `db-start.ps1` / `db-start.sh` | Liga a instância Cloud SQL |
 | `db-stop.ps1` / `db-stop.sh` | Desliga a instância Cloud SQL |
 | `db-status.ps1` / `db-status.sh` | Mostra o status atual da instância |
 | `db-proxy.ps1` / `db-proxy.sh` | Inicia o Cloud SQL Auth Proxy na porta 5433 |
+| `pg-dump-cloudsql.ps1` / `.cmd` | Gera `.dump` via proxy (`.env` com `localhost:5433`) |
 
 ---
 
 ## Configuração do .env
 
-O `.env` na raiz do projeto controla a conexão do backend:
+Para a configuração atual com **Neon**, use a `DATABASE_URL` fornecida pelo painel do Neon. Veja [neon-setup.md](./neon-setup.md).
+
+Exemplo histórico (Cloud SQL via Auth Proxy):
 
 ```env
-# Cloud SQL via Auth Proxy
+# Cloud SQL via Auth Proxy (legado)
 DATABASE_URL=postgresql://dataduca_user:<SENHA>@localhost:5433/dataduca
 
 # Para usar o banco local, comente a linha acima e descomente abaixo:
@@ -116,7 +121,7 @@ DATABASE_URL=postgresql://dataduca_user:<SENHA>@localhost:5433/dataduca
 ```
 
 O backend suporta dois modos de conexão:
-- **`DATABASE_URL`** (prioridade): string de conexão completa, usada com o Cloud SQL.
+- **`DATABASE_URL`** (prioridade): string de conexão completa (Neon ou Cloud SQL via proxy).
 - **Variáveis individuais** (`DB_HOST`, `DB_PORT`, etc.): usadas com PostgreSQL local.
 
 ---

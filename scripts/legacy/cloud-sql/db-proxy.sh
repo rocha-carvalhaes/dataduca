@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Legado: Cloud SQL Auth Proxy. Com Neon use DATABASE_URL direto (ver docs/neon-setup.md).
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/db-config.sh"
