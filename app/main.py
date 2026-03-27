@@ -80,6 +80,7 @@ async def _log_cors_on_startup():
         _VERCEL_APP_ORIGIN_REGEX,
     )
 
+
 # Inclui os routers
 app.include_router(health_check.router)
 app.include_router(auth.router)
