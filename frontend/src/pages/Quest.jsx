@@ -9,11 +9,7 @@ function normalizeActivityType(t) {
   return (t || '').toLowerCase().trim();
 }
 
-function Quest({
-  onStartQuestActivity,
-  resumeQuestId,
-  onResumeConsumed,
-}) {
+function Quest({ onStartQuestActivity, resumeQuestId, onResumeConsumed }) {
   const user = authStorage.getUser();
   const isStaff = user && STAFF_TYPES.has(user.user_type);
 
@@ -222,7 +218,9 @@ function Quest({
   const orderedSteps = detail?.quest
     ? [...detail.quest.steps].sort((a, b) => a.step_order - b.step_order)
     : [];
-  const nextEnforced = orderedSteps.find((s) => !completedSet.has(s.quest_step_id));
+  const nextEnforced = orderedSteps.find(
+    (s) => !completedSet.has(s.quest_step_id)
+  );
   const hasProgress = Boolean(detail?.progress);
   const questDone =
     orderedSteps.length > 0 &&
@@ -262,7 +260,9 @@ function Quest({
   const continueQuest = () => {
     if (!detail?.quest || !nextEnforced) return;
     const q = detail.quest;
-    const ordered = [...(q.steps || [])].sort((a, b) => a.step_order - b.step_order);
+    const ordered = [...(q.steps || [])].sort(
+      (a, b) => a.step_order - b.step_order
+    );
     onStartQuestActivity({
       questId: q.quest_id,
       steps: ordered.map((s) => ({
@@ -302,15 +302,19 @@ function Quest({
           <ErrorAlert message={formError} />
           {forkFromQuestId != null && (
             <p className="text-sm text-[#555555] bg-[#F5F6F7] border border-[#E8E8E8] rounded-lg p-3">
-              Será criada uma <strong>nova</strong> quest. Quem já iniciou a versão
-              anterior mantém o progresso nela até concluir.
+              Será criada uma <strong>nova</strong> quest. Quem já iniciou a
+              versão anterior mantém o progresso nela até concluir.
             </p>
           )}
           <div>
-            <label className="block text-sm font-medium text-[#333333] mb-1">
+            <label
+              htmlFor="quest-form-name"
+              className="block text-sm font-medium text-[#333333] mb-1"
+            >
               Nome
             </label>
             <input
+              id="quest-form-name"
               className="w-full border border-[#D9D9D9] rounded-lg px-3 py-2"
               value={formName}
               onChange={(e) => setFormName(e.target.value)}
@@ -318,20 +322,28 @@ function Quest({
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-[#333333] mb-1">
+            <label
+              htmlFor="quest-form-description"
+              className="block text-sm font-medium text-[#333333] mb-1"
+            >
               Descrição (opcional)
             </label>
             <textarea
+              id="quest-form-description"
               className="w-full border border-[#D9D9D9] rounded-lg px-3 py-2 min-h-[80px]"
               value={formDescription}
               onChange={(e) => setFormDescription(e.target.value)}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-[#333333] mb-1">
+            <label
+              htmlFor="quest-form-objective"
+              className="block text-sm font-medium text-[#333333] mb-1"
+            >
               Objetivo (opcional)
             </label>
             <textarea
+              id="quest-form-objective"
               className="w-full border border-[#D9D9D9] rounded-lg px-3 py-2 min-h-[60px]"
               value={formObjective}
               onChange={(e) => setFormObjective(e.target.value)}
@@ -437,7 +449,9 @@ function Quest({
           <div className="space-y-6">
             <div className="bg-white rounded-lg shadow border border-[#D9D9D9] p-6">
               {detail.quest.quest_description && (
-                <p className="text-[#555555] mb-2">{detail.quest.quest_description}</p>
+                <p className="text-[#555555] mb-2">
+                  {detail.quest.quest_description}
+                </p>
               )}
               {detail.quest.quest_objective && (
                 <p className="text-sm text-[#777777] mb-2">

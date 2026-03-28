@@ -712,9 +712,7 @@ function TypingActivity({
                     %
                   </p>
                   {!allowReplayAfterComplete && !submitting && (
-                    <p className="text-sm text-[#6E6E6E] mt-4">
-                      Continuando…
-                    </p>
+                    <p className="text-sm text-[#6E6E6E] mt-4">Continuando…</p>
                   )}
                 </div>
                 {allowReplayAfterComplete && (

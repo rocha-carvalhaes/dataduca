@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import logging
 from datetime import datetime
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
@@ -119,6 +119,259 @@ def _fetch_steps_with_activities(cur, quest_id: int) -> List[dict]:
     return cur.fetchall()
 
 
+def _quest_step_rows_to_out(step_rows: List[dict]) -> List[QuestStepOut]:
+    return [
+        QuestStepOut(
+            quest_step_id=r["quest_step_id"],
+            activity_id=r["activity_id"],
+            step_order=r["step_order"],
+            activity_name=r["activity_name"],
+            activity_type=r["activity_type"],
+        )
+        for r in step_rows
+    ]
+
+
+def _load_quest_detail(cur, quest_id: int) -> QuestDetail:
+    cur.execute(
+        """
+        SELECT quest_id, quest_name, quest_description, quest_objective,
+               enforce_sequence, forked_from_quest_id, superseded_by_quest_id,
+               created_by, created_at, updated_at
+        FROM quests WHERE quest_id = %s
+        """,
+        (quest_id,),
+    )
+    q = cur.fetchone()
+    step_rows = _fetch_steps_with_activities(cur, quest_id)
+    steps = _quest_step_rows_to_out(step_rows)
+    return QuestDetail(
+        quest_id=q["quest_id"],
+        quest_name=q["quest_name"],
+        quest_description=q["quest_description"],
+        quest_objective=q["quest_objective"],
+        enforce_sequence=q["enforce_sequence"],
+        forked_from_quest_id=q.get("forked_from_quest_id"),
+        superseded_by_quest_id=q.get("superseded_by_quest_id"),
+        created_by=q["created_by"],
+        created_at=q["created_at"],
+        updated_at=q["updated_at"],
+        steps=steps,
+    )
+
+
+def _validate_fork_parent_for_insert(cur, fork_from: Optional[int]) -> None:
+    if fork_from is None:
+        return
+    cur.execute(
+        """
+        SELECT quest_id, superseded_by_quest_id FROM quests
+        WHERE quest_id = %s
+        FOR UPDATE
+        """,
+        (fork_from,),
+    )
+    parent = cur.fetchone()
+    if not parent:
+        raise HTTPException(
+            status_code=404, detail="Quest origem (fork) não encontrada"
+        )
+    if parent["superseded_by_quest_id"] is not None:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Esta versão já foi substituída; abra a quest atual na lista "
+                "para criar outra versão."
+            ),
+        )
+
+
+def _insert_new_quest_row(
+    cur, body: QuestCreate, user_id: int, fork_from: Optional[int]
+) -> int:
+    cur.execute(
+        """
+        INSERT INTO quests (quest_name, quest_description, quest_objective,
+            enforce_sequence, created_by, created_at, updated_at,
+            forked_from_quest_id, superseded_by_quest_id)
+        VALUES (%s, %s, %s, TRUE, %s, NOW(), NOW(), %s, NULL)
+        RETURNING quest_id
+        """,
+        (
+            body.quest_name,
+            body.quest_description,
+            body.quest_objective,
+            user_id,
+            fork_from,
+        ),
+    )
+    return cur.fetchone()["quest_id"]
+
+
+def _insert_quest_step_rows(cur, quest_id: int, steps: List[QuestStepInput]) -> None:
+    for s in steps:
+        cur.execute(
+            """
+            INSERT INTO quest_steps (quest_id, activity_id, step_order)
+            VALUES (%s, %s, %s)
+            """,
+            (quest_id, s.activity_id, s.step_order),
+        )
+
+
+def _supersede_fork_parent(cur, conn, new_quest_id: int, fork_from: int) -> None:
+    cur.execute(
+        """
+        UPDATE quests SET superseded_by_quest_id = %s, updated_at = NOW()
+        WHERE quest_id = %s AND superseded_by_quest_id IS NULL
+        """,
+        (new_quest_id, fork_from),
+    )
+    if cur.rowcount != 1:
+        conn.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="Não foi possível registrar a nova versão; tente novamente.",
+        )
+
+
+def _user_progress_out_from_row(row: Dict[str, Any]) -> UserProgressOut:
+    return UserProgressOut(
+        user_quest_progress_id=row["user_quest_progress_id"],
+        quest_id=row["quest_id"],
+        status=row["status"],
+        completed_quest_step_ids=_parse_completed_ids(row["completed_quest_step_ids"]),
+        started_at=row["started_at"],
+        completed_at=row["completed_at"],
+    )
+
+
+def _fetch_progress_snapshot_after_commit(
+    cur, conn, user_id: int, quest_id: int
+) -> UserProgressOut:
+    cur.execute(
+        """
+        SELECT user_quest_progress_id, quest_id, status, completed_quest_step_ids,
+               started_at, completed_at
+        FROM user_quest_progress
+        WHERE user_id = %s AND quest_id = %s
+        """,
+        (user_id, quest_id),
+    )
+    row = cur.fetchone()
+    conn.commit()
+    return _user_progress_out_from_row(row)
+
+
+def _next_incomplete_quest_step_id(
+    ordered: List[dict], completed: set
+) -> Optional[int]:
+    for r in ordered:
+        if r["quest_step_id"] not in completed:
+            return r["quest_step_id"]
+    return None
+
+
+def _assert_step_completion_order(
+    body: CompleteStepBody, ordered: List[dict], completed: set
+) -> None:
+    next_expected = _next_incomplete_quest_step_id(ordered, completed)
+    if next_expected is None:
+        raise HTTPException(
+            status_code=400, detail="Todos os passos já foram concluídos"
+        )
+    if body.quest_step_id != next_expected:
+        raise HTTPException(
+            status_code=400,
+            detail="Conclua os passos na ordem definida em quest_steps",
+        )
+
+
+def _complete_step_transaction(
+    cur,
+    conn,
+    quest_id: int,
+    body: CompleteStepBody,
+    user_id: int,
+) -> UserProgressOut:
+    cur.execute(
+        """
+        SELECT quest_id FROM quests WHERE quest_id = %s
+        """,
+        (quest_id,),
+    )
+    if not cur.fetchone():
+        raise HTTPException(status_code=404, detail="Quest não encontrada")
+
+    step_rows = _fetch_steps_with_activities(cur, quest_id)
+    if not step_rows:
+        raise HTTPException(status_code=400, detail="Quest sem passos")
+
+    step_ids_in_quest = {r["quest_step_id"] for r in step_rows}
+    if body.quest_step_id not in step_ids_in_quest:
+        raise HTTPException(status_code=400, detail="Passo não pertence a esta quest")
+
+    cur.execute(
+        """
+        SELECT user_quest_progress_id, status, completed_quest_step_ids
+        FROM user_quest_progress
+        WHERE user_id = %s AND quest_id = %s
+        FOR UPDATE
+        """,
+        (user_id, quest_id),
+    )
+    pr = cur.fetchone()
+    if not pr:
+        raise HTTPException(
+            status_code=400,
+            detail="Inicie a quest antes de registrar conclusão de passo",
+        )
+
+    completed = set(_parse_completed_ids(pr["completed_quest_step_ids"]))
+    if body.quest_step_id in completed:
+        return _fetch_progress_snapshot_after_commit(cur, conn, user_id, quest_id)
+
+    ordered = sorted(step_rows, key=lambda x: x["step_order"])
+    _assert_step_completion_order(body, ordered, completed)
+
+    completed.add(body.quest_step_id)
+    order_index = {r["quest_step_id"]: i for i, r in enumerate(ordered)}
+    completed_list = sorted(completed, key=lambda x: order_index[x])
+    all_done = len(completed) == len(ordered)
+
+    return _persist_quest_step_completion(cur, conn, pr, completed_list, all_done)
+
+
+def _persist_quest_step_completion(
+    cur,
+    conn,
+    progress_row: dict,
+    completed_list: List[int],
+    all_done: bool,
+) -> UserProgressOut:
+    new_status = "completed" if all_done else "in_progress"
+    completed_at = datetime.utcnow() if all_done else None
+    cur.execute(
+        """
+        UPDATE user_quest_progress SET
+            completed_quest_step_ids = %s::jsonb,
+            status = %s,
+            completed_at = COALESCE(%s, completed_at)
+        WHERE user_quest_progress_id = %s
+        RETURNING user_quest_progress_id, quest_id, status, completed_quest_step_ids, started_at, completed_at
+        """,
+        (
+            Json(completed_list),
+            new_status,
+            completed_at,
+            progress_row["user_quest_progress_id"],
+        ),
+    )
+    row = cur.fetchone()
+    conn.commit()
+    return _user_progress_out_from_row(row)
+
+
 @router.get("/", response_model=List[QuestListItem])
 async def list_quests(user: TokenData = Depends(require_aluno_or_staff)):
     conn = None
@@ -126,8 +379,7 @@ async def list_quests(user: TokenData = Depends(require_aluno_or_staff)):
         conn = get_db_connection()
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             # Só versões atuais (não substituídas por fork); obsoletas ficam fora da lista.
-            cur.execute(
-                """
+            cur.execute("""
                 SELECT q.quest_id, q.quest_name, q.quest_description, q.enforce_sequence,
                        q.superseded_by_quest_id,
                        COUNT(qs.quest_step_id)::int AS step_count
@@ -137,8 +389,7 @@ async def list_quests(user: TokenData = Depends(require_aluno_or_staff)):
                 GROUP BY q.quest_id, q.quest_name, q.quest_description, q.enforce_sequence,
                          q.superseded_by_quest_id
                 ORDER BY q.updated_at DESC
-                """
-            )
+                """)
             rows = cur.fetchall()
             return [
                 QuestListItem(
@@ -242,7 +493,9 @@ async def get_quest(quest_id: int, user: TokenData = Depends(require_aluno_or_st
 
 def _validate_steps(steps: List[QuestStepInput]) -> None:
     if not steps:
-        raise HTTPException(status_code=400, detail="A quest precisa de pelo menos um passo")
+        raise HTTPException(
+            status_code=400, detail="A quest precisa de pelo menos um passo"
+        )
     orders = [s.step_order for s in steps]
     if len(set(orders)) != len(orders):
         raise HTTPException(status_code=400, detail="step_order duplicado")
@@ -259,104 +512,15 @@ async def create_quest(
     try:
         conn = get_db_connection()
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            _validate_fork_parent_for_insert(cur, fork_from)
+            quest_id = _insert_new_quest_row(cur, body, user.user_id, fork_from)
+            _insert_quest_step_rows(cur, quest_id, body.steps)
             if fork_from is not None:
-                cur.execute(
-                    """
-                    SELECT quest_id, superseded_by_quest_id FROM quests
-                    WHERE quest_id = %s
-                    FOR UPDATE
-                    """,
-                    (fork_from,),
-                )
-                parent = cur.fetchone()
-                if not parent:
-                    raise HTTPException(
-                        status_code=404, detail="Quest origem (fork) não encontrada"
-                    )
-                if parent["superseded_by_quest_id"] is not None:
-                    raise HTTPException(
-                        status_code=400,
-                        detail="Esta versão já foi substituída; abra a quest atual na lista para criar outra versão.",
-                    )
-
-            cur.execute(
-                """
-                INSERT INTO quests (quest_name, quest_description, quest_objective,
-                    enforce_sequence, created_by, created_at, updated_at,
-                    forked_from_quest_id, superseded_by_quest_id)
-                VALUES (%s, %s, %s, TRUE, %s, NOW(), NOW(), %s, NULL)
-                RETURNING quest_id
-                """,
-                (
-                    body.quest_name,
-                    body.quest_description,
-                    body.quest_objective,
-                    user.user_id,
-                    fork_from,
-                ),
-            )
-            quest_id = cur.fetchone()["quest_id"]
-
-            for s in body.steps:
-                cur.execute(
-                    """
-                    INSERT INTO quest_steps (quest_id, activity_id, step_order)
-                    VALUES (%s, %s, %s)
-                    """,
-                    (quest_id, s.activity_id, s.step_order),
-                )
-
-            if fork_from is not None:
-                cur.execute(
-                    """
-                    UPDATE quests SET superseded_by_quest_id = %s, updated_at = NOW()
-                    WHERE quest_id = %s AND superseded_by_quest_id IS NULL
-                    """,
-                    (quest_id, fork_from),
-                )
-                if cur.rowcount != 1:
-                    conn.rollback()
-                    raise HTTPException(
-                        status_code=409,
-                        detail="Não foi possível registrar a nova versão; tente novamente.",
-                    )
+                _supersede_fork_parent(cur, conn, quest_id, fork_from)
 
             conn.commit()
 
-            cur.execute(
-                """
-                SELECT quest_id, quest_name, quest_description, quest_objective,
-                       enforce_sequence, forked_from_quest_id, superseded_by_quest_id,
-                       created_by, created_at, updated_at
-                FROM quests WHERE quest_id = %s
-                """,
-                (quest_id,),
-            )
-            q = cur.fetchone()
-            step_rows = _fetch_steps_with_activities(cur, quest_id)
-            steps = [
-                QuestStepOut(
-                    quest_step_id=r["quest_step_id"],
-                    activity_id=r["activity_id"],
-                    step_order=r["step_order"],
-                    activity_name=r["activity_name"],
-                    activity_type=r["activity_type"],
-                )
-                for r in step_rows
-            ]
-            return QuestDetail(
-                quest_id=q["quest_id"],
-                quest_name=q["quest_name"],
-                quest_description=q["quest_description"],
-                quest_objective=q["quest_objective"],
-                enforce_sequence=q["enforce_sequence"],
-                forked_from_quest_id=q.get("forked_from_quest_id"),
-                superseded_by_quest_id=q.get("superseded_by_quest_id"),
-                created_by=q["created_by"],
-                created_at=q["created_at"],
-                updated_at=q["updated_at"],
-                steps=steps,
-            )
+            return _load_quest_detail(cur, quest_id)
     except HTTPException:
         if conn:
             conn.rollback()
@@ -392,7 +556,9 @@ async def delete_quest(quest_id: int, _: TokenData = Depends(require_staff_user)
     try:
         conn = get_db_connection()
         with conn.cursor() as cur:
-            cur.execute("DELETE FROM quests WHERE quest_id = %s RETURNING quest_id", (quest_id,))
+            cur.execute(
+                "DELETE FROM quests WHERE quest_id = %s RETURNING quest_id", (quest_id,)
+            )
             if not cur.fetchone():
                 raise HTTPException(status_code=404, detail="Quest não encontrada")
             conn.commit()
@@ -439,7 +605,9 @@ async def start_quest(quest_id: int, user: TokenData = Depends(require_aluno_or_
                 user_quest_progress_id=row["user_quest_progress_id"],
                 quest_id=row["quest_id"],
                 status=row["status"],
-                completed_quest_step_ids=_parse_completed_ids(row["completed_quest_step_ids"]),
+                completed_quest_step_ids=_parse_completed_ids(
+                    row["completed_quest_step_ids"]
+                ),
                 started_at=row["started_at"],
                 completed_at=row["completed_at"],
             )
@@ -467,114 +635,7 @@ async def complete_step(
     try:
         conn = get_db_connection()
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute(
-                """
-                SELECT quest_id FROM quests WHERE quest_id = %s
-                """,
-                (quest_id,),
-            )
-            quest_row = cur.fetchone()
-            if not quest_row:
-                raise HTTPException(status_code=404, detail="Quest não encontrada")
-
-            # Sempre seguir quest_steps em ordem; no futuro (mapa/gamificação) pode haver exceções.
-            step_rows = _fetch_steps_with_activities(cur, quest_id)
-            if not step_rows:
-                raise HTTPException(status_code=400, detail="Quest sem passos")
-
-            step_ids_in_quest = {r["quest_step_id"] for r in step_rows}
-            if body.quest_step_id not in step_ids_in_quest:
-                raise HTTPException(status_code=400, detail="Passo não pertence a esta quest")
-
-            cur.execute(
-                """
-                SELECT user_quest_progress_id, status, completed_quest_step_ids
-                FROM user_quest_progress
-                WHERE user_id = %s AND quest_id = %s
-                FOR UPDATE
-                """,
-                (user.user_id, quest_id),
-            )
-            pr = cur.fetchone()
-            if not pr:
-                raise HTTPException(
-                    status_code=400,
-                    detail="Inicie a quest antes de registrar conclusão de passo",
-                )
-
-            completed = set(_parse_completed_ids(pr["completed_quest_step_ids"]))
-            if body.quest_step_id in completed:
-                cur.execute(
-                    """
-                    SELECT user_quest_progress_id, quest_id, status, completed_quest_step_ids,
-                           started_at, completed_at
-                    FROM user_quest_progress
-                    WHERE user_id = %s AND quest_id = %s
-                    """,
-                    (user.user_id, quest_id),
-                )
-                row = cur.fetchone()
-                conn.commit()
-                return UserProgressOut(
-                    user_quest_progress_id=row["user_quest_progress_id"],
-                    quest_id=row["quest_id"],
-                    status=row["status"],
-                    completed_quest_step_ids=_parse_completed_ids(
-                        row["completed_quest_step_ids"]
-                    ),
-                    started_at=row["started_at"],
-                    completed_at=row["completed_at"],
-                )
-
-            ordered = sorted(step_rows, key=lambda x: x["step_order"])
-            next_expected = None
-            for r in ordered:
-                if r["quest_step_id"] not in completed:
-                    next_expected = r["quest_step_id"]
-                    break
-            if next_expected is None:
-                raise HTTPException(status_code=400, detail="Todos os passos já foram concluídos")
-            if body.quest_step_id != next_expected:
-                raise HTTPException(
-                    status_code=400,
-                    detail="Conclua os passos na ordem definida em quest_steps",
-                )
-
-            completed.add(body.quest_step_id)
-            order_index = {r["quest_step_id"]: i for i, r in enumerate(ordered)}
-            completed_list = sorted(completed, key=lambda x: order_index[x])
-
-            all_done = len(completed) == len(ordered)
-
-            new_status = "completed" if all_done else "in_progress"
-            completed_at = datetime.utcnow() if all_done else None
-
-            cur.execute(
-                """
-                UPDATE user_quest_progress SET
-                    completed_quest_step_ids = %s::jsonb,
-                    status = %s,
-                    completed_at = COALESCE(%s, completed_at)
-                WHERE user_quest_progress_id = %s
-                RETURNING user_quest_progress_id, quest_id, status, completed_quest_step_ids, started_at, completed_at
-                """,
-                (
-                    Json(completed_list),
-                    new_status,
-                    completed_at,
-                    pr["user_quest_progress_id"],
-                ),
-            )
-            row = cur.fetchone()
-            conn.commit()
-            return UserProgressOut(
-                user_quest_progress_id=row["user_quest_progress_id"],
-                quest_id=row["quest_id"],
-                status=row["status"],
-                completed_quest_step_ids=_parse_completed_ids(row["completed_quest_step_ids"]),
-                started_at=row["started_at"],
-                completed_at=row["completed_at"],
-            )
+            return _complete_step_transaction(cur, conn, quest_id, body, user.user_id)
     except HTTPException:
         if conn:
             conn.rollback()

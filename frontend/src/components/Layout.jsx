@@ -110,8 +110,12 @@ function Layout({ onLogout }) {
     }
   }, [questContext, handleBackToActivities]);
 
-  const questFinishedCallback = questContext ? handleQuestActivityFinished : undefined;
-  const activityOnBack = questContext ? handleBackFromActivity : handleBackToActivities;
+  const questFinishedCallback = questContext
+    ? handleQuestActivityFinished
+    : undefined;
+  const activityOnBack = questContext
+    ? handleBackFromActivity
+    : handleBackToActivities;
   const allowReplayAfterComplete = questContext == null;
 
   const renderPage = () => {
