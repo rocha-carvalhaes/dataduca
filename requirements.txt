@@ -7,3 +7,5 @@ psycopg2-binary
 bcrypt
 python-jose[cryptography]
 python-multipart
+httpx
+pytest
