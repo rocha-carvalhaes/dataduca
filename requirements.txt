@@ -8,4 +8,4 @@ bcrypt
 python-jose[cryptography]
 python-multipart
 httpx
-pytest
+pytest>=7.0
