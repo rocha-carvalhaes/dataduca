@@ -27,7 +27,8 @@ export const api = {
       ...options,
     };
 
-    const timeoutMs = options.timeout || 5000;
+    // 20s: produção (Neon/Railway com cold start) costuma ultrapassar 5s ocasionalmente
+    const timeoutMs = options.timeout ?? 20000;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
     config.signal = controller.signal;
@@ -36,6 +37,10 @@ export const api = {
     try {
       const response = await fetch(url, config);
       clearTimeout(timeoutId);
+
+      if (response.status === 204 || response.status === 205) {
+        return null;
+      }
 
       if (!response.ok) {
         // Tenta obter a mensagem de erro do servidor
@@ -269,6 +274,42 @@ export const api = {
       return api.request('/api/manage/query', {
         method: 'POST',
         body: JSON.stringify(data),
+      });
+    },
+  },
+  quests: {
+    async list() {
+      return api.request('/api/quests/');
+    },
+    async get(questId) {
+      return api.request(`/api/quests/${questId}`);
+    },
+    async create(data) {
+      return api.request('/api/quests/', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+    },
+    async update(questId, data) {
+      return api.request(`/api/quests/${questId}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      });
+    },
+    async delete(questId) {
+      return api.request(`/api/quests/${questId}`, {
+        method: 'DELETE',
+      });
+    },
+    async start(questId) {
+      return api.request(`/api/quests/${questId}/start`, {
+        method: 'POST',
+      });
+    },
+    async completeStep(questId, body) {
+      return api.request(`/api/quests/${questId}/complete-step`, {
+        method: 'POST',
+        body: JSON.stringify(body),
       });
     },
   },

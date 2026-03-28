@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Sidebar from './Sidebar';
 import Home from '../pages/Home';
 import Activities from '../pages/Activities';
+import Quest from '../pages/Quest';
 import TypingActivity from '../pages/TypingActivity';
 import UnscramblePhrases from '../pages/UnscramblePhrases';
 import WritingActivity from '../pages/WritingActivity';
@@ -9,15 +10,21 @@ import Manage from '../pages/Manage';
 import Documents from '../pages/Documents';
 import { authStorage } from '../utils/auth';
 import { BackButton } from './ui';
+import api from '../config/api';
+
+function normalizeActivityType(t) {
+  return (t || '').toLowerCase().trim();
+}
 
 function Layout({ onLogout }) {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [currentPage, setCurrentPage] = useState('home');
   const [currentActivity, setCurrentActivity] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
+  const [questContext, setQuestContext] = useState(null);
+  const [questResumeQuestId, setQuestResumeQuestId] = useState(null);
 
   useEffect(() => {
-    // Carregar informações do usuário
     const user = authStorage.getUser();
     setCurrentUser(user);
   }, []);
@@ -26,46 +33,113 @@ function Layout({ onLogout }) {
     setIsSidebarCollapsed(!isSidebarCollapsed);
   };
 
-  const handlePageChange = (pageId) => {
-    setCurrentPage(pageId);
-    setCurrentActivity(null);
-  };
-
-  const handleOpenActivity = (activityId, type) => {
-    console.log('Abrindo atividade:', { activityId, type });
-    setCurrentActivity({ id: activityId, type });
-  };
-
-  const handleBackToActivities = () => {
+  const handleBackToActivities = useCallback(() => {
     setCurrentActivity(null);
     setCurrentPage('activities');
-  };
+  }, []);
+
+  const handlePageChange = useCallback((pageId) => {
+    setCurrentPage(pageId);
+    setCurrentActivity(null);
+    setQuestContext(null);
+    setQuestResumeQuestId(null);
+  }, []);
+
+  const handleOpenActivity = useCallback((activityId, type) => {
+    setCurrentActivity({ id: activityId, type });
+  }, []);
+
+  const handleStartQuestActivity = useCallback((payload) => {
+    setQuestContext({
+      questId: payload.questId,
+      steps: payload.steps,
+      enforceSequence: payload.enforceSequence,
+      currentStepIndex: payload.currentStepIndex ?? 0,
+    });
+    setCurrentActivity({
+      id: payload.activityId,
+      type: normalizeActivityType(payload.activityType),
+    });
+  }, []);
+
+  const handleQuestResumeConsumed = useCallback(() => {
+    setQuestResumeQuestId(null);
+  }, []);
+
+  const handleQuestActivityFinished = useCallback(async () => {
+    const ctx = questContext;
+    const act = currentActivity;
+    if (!ctx || !act) return;
+    try {
+      await api.quests.completeStep(ctx.questId, { activity_id: act.id });
+    } catch (e) {
+      console.error(e);
+      return;
+    }
+    // Fluxo linear conforme quest_steps; exploração livre (mapa) virá depois.
+    const idx = ctx.steps.findIndex((s) => s.activity_id === act.id);
+    const next = ctx.steps[idx + 1];
+    if (next) {
+      setQuestContext((prev) =>
+        prev ? { ...prev, currentStepIndex: idx + 1 } : null
+      );
+      setCurrentActivity({
+        id: next.activity_id,
+        type: normalizeActivityType(next.activity_type),
+      });
+    } else {
+      setQuestContext(null);
+      setCurrentActivity(null);
+      setQuestResumeQuestId(ctx.questId);
+    }
+  }, [questContext, currentActivity]);
+
+  const handleBackFromActivity = useCallback(() => {
+    if (questContext) {
+      const qid = questContext.questId;
+      setQuestContext(null);
+      setCurrentActivity(null);
+      setQuestResumeQuestId(qid);
+      setCurrentPage('quest');
+    } else {
+      handleBackToActivities();
+    }
+  }, [questContext, handleBackToActivities]);
+
+  const questFinishedCallback = questContext ? handleQuestActivityFinished : undefined;
+  const activityOnBack = questContext ? handleBackFromActivity : handleBackToActivities;
+  const allowReplayAfterComplete = questContext == null;
 
   const renderPage = () => {
     if (currentActivity) {
-      console.log('Renderizando atividade:', currentActivity);
       const activityType = currentActivity.type?.toLowerCase()?.trim();
 
       switch (activityType) {
         case 'digitacao':
           return (
             <TypingActivity
-              onBack={handleBackToActivities}
+              onBack={activityOnBack}
               activityId={currentActivity.id}
+              onQuestActivityFinished={questFinishedCallback}
+              allowReplayAfterComplete={allowReplayAfterComplete}
             />
           );
         case 'desembaralhar_frases':
           return (
             <UnscramblePhrases
-              onBack={handleBackToActivities}
+              onBack={activityOnBack}
               activityId={currentActivity.id}
+              onQuestActivityFinished={questFinishedCallback}
+              allowReplayAfterComplete={allowReplayAfterComplete}
             />
           );
         case 'escrita':
           return (
             <WritingActivity
-              onBack={handleBackToActivities}
+              onBack={activityOnBack}
               activityId={currentActivity.id}
+              onQuestActivityFinished={questFinishedCallback}
+              allowReplayAfterComplete={allowReplayAfterComplete}
             />
           );
         default:
@@ -73,7 +147,7 @@ function Layout({ onLogout }) {
           return (
             <div className="p-6">
               <div className="mb-6 flex items-center justify-between">
-                <BackButton onClick={handleBackToActivities} />
+                <BackButton onClick={activityOnBack} />
               </div>
               <div className="max-w-2xl mx-auto bg-white rounded-lg shadow border border-[#D9D9D9] p-8">
                 <div className="text-center mb-6">
@@ -97,7 +171,7 @@ function Layout({ onLogout }) {
                 </div>
                 <div className="text-center">
                   <button
-                    onClick={handleBackToActivities}
+                    onClick={activityOnBack}
                     className="px-6 py-2 bg-[#E6A8D7] text-white rounded-lg hover:bg-[#D997C7] transition-colors font-medium"
                   >
                     Voltar para Atividades
@@ -110,6 +184,14 @@ function Layout({ onLogout }) {
     }
 
     switch (currentPage) {
+      case 'quest':
+        return (
+          <Quest
+            onStartQuestActivity={handleStartQuestActivity}
+            resumeQuestId={questResumeQuestId}
+            onResumeConsumed={handleQuestResumeConsumed}
+          />
+        );
       case 'activities':
         return <Activities onOpenActivity={handleOpenActivity} />;
       case 'manage':
@@ -122,9 +204,18 @@ function Layout({ onLogout }) {
     }
   };
 
+  const headerTitle = () => {
+    if (currentActivity) return 'Atividade';
+    if (currentPage === 'home') return 'Início';
+    if (currentPage === 'quest') return 'Quest';
+    if (currentPage === 'activities') return 'Atividades';
+    if (currentPage === 'manage') return 'Gerenciar';
+    if (currentPage === 'documents') return 'Documentação';
+    return '';
+  };
+
   return (
     <div className="flex h-screen bg-[#F5F6F7] overflow-hidden">
-      {/* Sidebar */}
       <Sidebar
         isCollapsed={isSidebarCollapsed}
         onToggle={handleToggleSidebar}
@@ -132,23 +223,12 @@ function Layout({ onLogout }) {
         onPageChange={handlePageChange}
       />
 
-      {/* Conteúdo Principal */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
         <header className="bg-white shadow-sm border-b border-[#D9D9D9]">
           <div className="flex items-center justify-between px-6 py-4">
             <div className="flex items-center gap-4">
               <h2 className="text-xl font-semibold text-[#333333]">
-                {currentActivity
-                  ? 'Atividade'
-                  : currentPage === 'home' && 'Início'}
-                {!currentActivity &&
-                  currentPage === 'activities' &&
-                  'Atividades'}
-                {!currentActivity && currentPage === 'manage' && 'Gerenciar'}
-                {!currentActivity &&
-                  currentPage === 'documents' &&
-                  'Documentação'}
+                {headerTitle()}
               </h2>
             </div>
             <div className="flex items-center gap-4">
@@ -191,7 +271,6 @@ function Layout({ onLogout }) {
           </div>
         </header>
 
-        {/* Área de Conteúdo */}
         <main className="flex-1 overflow-y-auto">{renderPage()}</main>
       </div>
     </div>

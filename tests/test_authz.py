@@ -32,3 +32,8 @@ def test_activity_params_list_requires_auth(client: TestClient):
 def test_activities_list_requires_auth(client: TestClient):
     r = client.get("/api/activities/list")
     assert r.status_code == 401
+
+
+def test_quests_list_requires_auth(client: TestClient):
+    r = client.get("/api/quests/")
+    assert r.status_code == 401

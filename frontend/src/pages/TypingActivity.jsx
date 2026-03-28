@@ -2,7 +2,12 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import api from '../config/api';
 import { LoadingState, BackButton } from '../components/ui';
 
-function TypingActivity({ onBack, activityId }) {
+function TypingActivity({
+  onBack,
+  activityId,
+  onQuestActivityFinished,
+  allowReplayAfterComplete = true,
+}) {
   const [characters, setCharacters] = useState([]);
   const [totalBubbles, setTotalBubbles] = useState(0);
   const [speed, setSpeed] = useState(null);
@@ -292,7 +297,20 @@ function TypingActivity({ onBack, activityId }) {
       console.warn('⚠️ Nenhuma sessão de atividade encontrada para atualizar');
     }
     setSubmitting(false);
-  }, [totalBubbles, generatedBubbles, hitBubbles, activitySessionId]);
+    if (onQuestActivityFinished) {
+      try {
+        await onQuestActivityFinished();
+      } catch (err) {
+        console.error('Quest pós-atividade:', err);
+      }
+    }
+  }, [
+    totalBubbles,
+    generatedBubbles,
+    hitBubbles,
+    activitySessionId,
+    onQuestActivityFinished,
+  ]);
 
   // Detect when game is finished
   useEffect(() => {
@@ -693,20 +711,27 @@ function TypingActivity({ onBack, activityId }) {
                       : 0}
                     %
                   </p>
+                  {!allowReplayAfterComplete && !submitting && (
+                    <p className="text-sm text-[#6E6E6E] mt-4">
+                      Continuando…
+                    </p>
+                  )}
                 </div>
-                <button
-                  onClick={restartGame}
-                  disabled={submitting}
-                  className="flex items-center justify-center w-20 h-20 rounded-full bg-[#E6A8D7] hover:bg-[#d897c8] text-white shadow-lg transition-all hover:scale-110 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
-                >
-                  <svg
-                    className="w-10 h-10"
-                    fill="currentColor"
-                    viewBox="0 0 24 24"
+                {allowReplayAfterComplete && (
+                  <button
+                    onClick={restartGame}
+                    disabled={submitting}
+                    className="flex items-center justify-center w-20 h-20 rounded-full bg-[#E6A8D7] hover:bg-[#d897c8] text-white shadow-lg transition-all hover:scale-110 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
                   >
-                    <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z" />
-                  </svg>
-                </button>
+                    <svg
+                      className="w-10 h-10"
+                      fill="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z" />
+                    </svg>
+                  </button>
+                )}
               </>
             )}
           </div>

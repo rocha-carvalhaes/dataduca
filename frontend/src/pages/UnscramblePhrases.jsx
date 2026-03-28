@@ -2,7 +2,12 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import api from '../config/api';
 import { LoadingState, BackButton } from '../components/ui';
 
-function UnscramblePhrases({ onBack, activityId }) {
+function UnscramblePhrases({
+  onBack,
+  activityId,
+  onQuestActivityFinished,
+  allowReplayAfterComplete = true,
+}) {
   const [phrases, setPhrases] = useState([]); // Todas as frases disponíveis
   const [selectedPhrases, setSelectedPhrases] = useState([]); // Frases selecionadas para esta sessão
   const [currentPhraseIndex, setCurrentPhraseIndex] = useState(0);
@@ -228,7 +233,14 @@ function UnscramblePhrases({ onBack, activityId }) {
     }
     setSubmitting(false);
     setGameCompleted(true);
-  }, [activitySessionId]);
+    if (onQuestActivityFinished) {
+      try {
+        await onQuestActivityFinished();
+      } catch (err) {
+        console.error('Quest pós-atividade:', err);
+      }
+    }
+  }, [activitySessionId, onQuestActivityFinished]);
 
   // Função para reiniciar o jogo
   const restartGame = useCallback(async () => {
@@ -564,42 +576,47 @@ function UnscramblePhrases({ onBack, activityId }) {
               <p className="text-[#777777] mb-2">
                 Você completou {selectedPhrases.length} frases
               </p>
-            </div>
-            <button
-              onClick={restartGame}
-              disabled={submitting}
-              className="flex items-center justify-center w-20 h-20 rounded-full bg-[#E6A8D7] hover:bg-[#d897c8] text-white shadow-lg transition-all hover:scale-110 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
-            >
-              {submitting ? (
-                <svg
-                  className="w-8 h-8 animate-spin"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                  />
-                </svg>
-              ) : (
-                <svg
-                  className="w-10 h-10"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z" />
-                </svg>
+              {!allowReplayAfterComplete && !submitting && (
+                <p className="text-sm text-[#6E6E6E] mt-2">Continuando…</p>
               )}
-            </button>
+            </div>
+            {allowReplayAfterComplete && (
+              <button
+                onClick={restartGame}
+                disabled={submitting}
+                className="flex items-center justify-center w-20 h-20 rounded-full bg-[#E6A8D7] hover:bg-[#d897c8] text-white shadow-lg transition-all hover:scale-110 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
+              >
+                {submitting ? (
+                  <svg
+                    className="w-8 h-8 animate-spin"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                    />
+                  </svg>
+                ) : (
+                  <svg
+                    className="w-10 h-10"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z" />
+                  </svg>
+                )}
+              </button>
+            )}
           </div>
         )}
       </div>
