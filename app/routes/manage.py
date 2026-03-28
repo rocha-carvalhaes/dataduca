@@ -4,7 +4,8 @@ from typing import List, Optional
 from psycopg2.extras import RealDictCursor
 import logging
 
-from app.routes.auth import get_current_user, TokenData, get_db_connection
+from app.deps.authz import require_admin_user
+from app.routes.auth import TokenData, get_db_connection
 
 logger = logging.getLogger(__name__)
 
@@ -130,7 +131,7 @@ def _get_column_alias(table_config: dict, col_name: str) -> str:
 
 
 @router.get("/tables")
-async def list_tables(current_user: TokenData = Depends(get_current_user)):
+async def list_tables(_: TokenData = Depends(require_admin_user)):
     return [
         {"id": table_id, "label": config["label"]}
         for table_id, config in ALLOWED_TABLES.items()
@@ -138,7 +139,7 @@ async def list_tables(current_user: TokenData = Depends(get_current_user)):
 
 
 @router.get("/columns")
-async def list_columns(table: str, current_user: TokenData = Depends(get_current_user)):
+async def list_columns(table: str, _: TokenData = Depends(require_admin_user)):
     if table not in ALLOWED_TABLES:
         raise HTTPException(status_code=400, detail="Tabela não permitida")
 
@@ -205,9 +206,7 @@ def _run_query(sql: str, params: list) -> dict:
 
 
 @router.post("/query")
-async def execute_query(
-    body: QueryRequest, current_user: TokenData = Depends(get_current_user)
-):
+async def execute_query(body: QueryRequest, _: TokenData = Depends(require_admin_user)):
     if body.table not in ALLOWED_TABLES:
         raise HTTPException(status_code=400, detail="Tabela não permitida")
 

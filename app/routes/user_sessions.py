@@ -7,6 +7,7 @@ import os
 from datetime import datetime
 import logging
 from dotenv import load_dotenv
+from app.core.roles import ROLE_ALUNO, is_staff
 from app.routes.auth import get_current_user, TokenData
 
 # Carregar variáveis de ambiente
@@ -99,12 +100,12 @@ async def get_current_user_session(current_user: TokenData = Depends(get_current
 
 @router.get("/", response_model=List[UserSessionResponse])
 async def list_user_sessions(current_user: TokenData = Depends(get_current_user)):
-    """Lista todas as sessões de usuários"""
+    """Lista sessões de usuário: aluno vê só as próprias; staff vê todas."""
     conn = None
     try:
         conn = get_db_connection()
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute("""
+            base = """
                 SELECT
                     us.user_session_id,
                     us.user_id,
@@ -113,8 +114,18 @@ async def list_user_sessions(current_user: TokenData = Depends(get_current_user)
                     us.ended_at
                 FROM user_sessions us
                 JOIN users u ON us.user_id = u.user_id
-                ORDER BY us.initiated_at DESC
-            """)
+            """
+            if is_staff(current_user.user_type):
+                cur.execute(base + " ORDER BY us.initiated_at DESC")
+            elif current_user.user_type == ROLE_ALUNO:
+                cur.execute(
+                    base + " WHERE us.user_id = %s ORDER BY us.initiated_at DESC",
+                    (current_user.user_id,),
+                )
+            else:
+                raise HTTPException(
+                    status_code=403, detail="Papel de usuário não suportado"
+                )
             sessions = cur.fetchall()
             return [dict(session) for session in sessions]
     except HTTPException:

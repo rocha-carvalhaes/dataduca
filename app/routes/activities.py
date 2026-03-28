@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from typing import List, Optional
 from psycopg2.extras import RealDictCursor
@@ -51,6 +51,12 @@ async def get_typing_params(
     # Se não houver activity_id, retorna padrão
     if not activity_id:
         return default_params
+
+    if current_user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Autenticação necessária para parâmetros personalizados desta atividade",
+        )
 
     # Tentar buscar parâmetros personalizados do usuário
     conn = None
@@ -132,6 +138,12 @@ async def get_unscramble_phrases_params(
     if not activity_id:
         return default_params
 
+    if current_user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Autenticação necessária para parâmetros personalizados desta atividade",
+        )
+
     # Tentar buscar parâmetros personalizados do usuário
     conn = None
     try:
@@ -204,6 +216,12 @@ async def get_writing_params(
     # Se não houver activity_id, retorna padrão
     if not activity_id:
         return default_params
+
+    if current_user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Autenticação necessária para parâmetros personalizados desta atividade",
+        )
 
     # Tentar buscar parâmetros personalizados do usuário
     conn = None

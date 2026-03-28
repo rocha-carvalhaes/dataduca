@@ -6,6 +6,7 @@ import logging
 from datetime import datetime
 from dotenv import load_dotenv
 
+from app.core.roles import is_staff
 from app.routes.auth import get_current_user, TokenData, get_db_connection
 
 load_dotenv()
@@ -14,11 +15,6 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/user-activity-params", tags=["User Activity Params"])
-
-
-def is_admin_or_professor(user_type: str) -> bool:
-    """Verifica se o usuário tem permissões administrativas"""
-    return user_type in ["professor", "administrador"]
 
 
 class UserActivityParamsCreate(BaseModel):
@@ -48,7 +44,7 @@ def _determine_user_id(
 ) -> int:
     """Determina o user_id a ser usado baseado nas permissões do usuário"""
     if params_data.user_id is not None:
-        if not is_admin_or_professor(current_user.user_type):
+        if not is_staff(current_user.user_type):
             raise HTTPException(
                 status_code=403,
                 detail="Apenas administradores e professores podem criar parâmetros para outros usuários",
@@ -106,8 +102,8 @@ async def list_user_activity_params(
             """
             params = []
 
-            # Se não for admin/professor, filtrar apenas pelo usuário atual
-            if not is_admin_or_professor(current_user.user_type):
+            # Se não for staff, filtrar apenas pelo usuário atual
+            if not is_staff(current_user.user_type):
                 query += " AND user_id = %s"
                 params.append(current_user.user_id)
             elif user_id:
@@ -307,7 +303,7 @@ async def get_user_activity_params(
             # Verificar permissão: usuários só podem ver seus próprios parâmetros
             # (exceto administradores e professores)
             if (
-                not is_admin_or_professor(current_user.user_type)
+                not is_staff(current_user.user_type)
                 and result["user_id"] != current_user.user_id
             ):
                 raise HTTPException(status_code=403, detail="Acesso negado")

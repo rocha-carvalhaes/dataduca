@@ -9,6 +9,8 @@ from psycopg2.extras import RealDictCursor
 import logging
 import json
 
+from app.core.roles import is_staff
+from app.deps.authz import require_staff_user
 from app.routes.auth import get_current_user, TokenData, get_db_connection
 from app.core.level_evaluator import LevelEvaluator
 from app.core.session_cache import reset_count
@@ -41,12 +43,12 @@ async def evaluate_user_level(  # noqa: C901
     """
     conn = None
     try:
-        # Verificar permissões (apenas admin/professor ou o próprio usuário)
-        if (
-            current_user.user_type not in ["administrador", "professor"]
-            and current_user.user_id != user_id
-        ):
-            raise HTTPException(403, "Você não tem permissão para avaliar este usuário")
+        # Staff ou o próprio usuário (aluno)
+        if not is_staff(current_user.user_type) and current_user.user_id != user_id:
+            raise HTTPException(
+                status_code=403,
+                detail="Você não tem permissão para avaliar este usuário",
+            )
 
         conn = get_db_connection()
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
@@ -281,11 +283,11 @@ async def evaluate_all_user_levels(
     """
     Avalia e atualiza todos os níveis de um usuário.
     """
-    if (
-        current_user.user_type not in ["administrador", "professor"]
-        and current_user.user_id != user_id
-    ):
-        raise HTTPException(403, "Você não tem permissão para avaliar este usuário")
+    if not is_staff(current_user.user_type) and current_user.user_id != user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Você não tem permissão para avaliar este usuário",
+        )
 
     conn = None
     try:
@@ -383,16 +385,13 @@ def _ensure_level_one(cur, conn) -> list:
 
 @router.post("/evaluate-all-users")
 async def evaluate_all_users_levels(
-    current_user: TokenData = Depends(get_current_user),
+    current_user: TokenData = Depends(require_staff_user),
 ):
     """
     Avalia e atualiza os níveis de TODOS os usuários para TODAS as atividades.
     Antes de avaliar, atribui nível 1 para quem ainda não tem nível registrado.
     Apenas administradores e professores podem executar.
     """
-    if current_user.user_type not in ["administrador", "professor"]:
-        raise HTTPException(403, "Apenas administradores/professores podem executar")
-
     conn = None
     try:
         conn = get_db_connection()

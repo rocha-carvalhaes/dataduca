@@ -7,7 +7,8 @@ import logging
 from datetime import datetime
 from dotenv import load_dotenv
 
-from app.routes.auth import get_current_user, TokenData, get_db_connection
+from app.deps.authz import require_staff_user
+from app.routes.auth import TokenData, get_db_connection
 
 load_dotenv()
 
@@ -15,11 +16,6 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/activity-params", tags=["Activity Params"])
-
-
-def is_admin_or_professor(user_type: str) -> bool:
-    """Verifica se o usuário tem permissões administrativas"""
-    return user_type in ["professor", "administrador"]
 
 
 class ActivityParamsCreate(BaseModel):
@@ -51,7 +47,7 @@ class ActivityParamsResponse(BaseModel):
 async def list_activity_params(
     activity_id: Optional[int] = None,
     active_only: bool = True,
-    current_user: TokenData = Depends(get_current_user),
+    _: TokenData = Depends(require_staff_user),
 ):
     """
     Lista parâmetros de níveis de atividades.
@@ -102,7 +98,7 @@ async def list_activity_params(
 @router.get("/{activity_param_id}", response_model=ActivityParamsResponse)
 async def get_activity_params(
     activity_param_id: int,
-    current_user: TokenData = Depends(get_current_user),
+    _: TokenData = Depends(require_staff_user),
 ):
     """
     Obtém um registro específico de parâmetros por ID.
@@ -149,7 +145,7 @@ async def get_activity_params(
 @router.post("/", response_model=ActivityParamsResponse, status_code=201)
 async def create_activity_params(
     params_data: ActivityParamsCreate,
-    current_user: TokenData = Depends(get_current_user),
+    _: TokenData = Depends(require_staff_user),
 ):
     """
     Cria novos parâmetros de nível para uma atividade.
@@ -242,7 +238,7 @@ async def create_activity_params(
 @router.delete("/{activity_param_id}", status_code=204)
 async def delete_activity_params(
     activity_param_id: int,
-    current_user: TokenData = Depends(get_current_user),
+    _: TokenData = Depends(require_staff_user),
 ):
     """
     Deleta (inativa) parâmetros de nível de atividade.
@@ -250,13 +246,6 @@ async def delete_activity_params(
     """
     conn = None
     try:
-        # Verificar permissões
-        if not is_admin_or_professor(current_user.user_type):
-            raise HTTPException(
-                status_code=403,
-                detail="Apenas administradores e professores podem deletar parâmetros",
-            )
-
         conn = get_db_connection()
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             # Verificar se o registro existe

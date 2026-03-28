@@ -7,7 +7,8 @@ import os
 from datetime import datetime
 import logging
 from dotenv import load_dotenv
-from app.routes.auth import get_current_user, TokenData
+from app.deps.authz import require_aluno_or_staff, require_staff_user
+from app.routes.auth import TokenData
 
 # Carregar variáveis de ambiente
 load_dotenv()
@@ -78,8 +79,8 @@ class ActivityResponse(BaseModel):
 
 
 @router.get("/list", response_model=List[ActivityResponse])
-async def list_activities(current_user: TokenData = Depends(get_current_user)):
-    """Lista todas as atividades"""
+async def list_activities(_: TokenData = Depends(require_aluno_or_staff)):
+    """Lista todas as atividades (catálogo para alunos e staff)."""
     conn = None
     try:
         conn = get_db_connection()
@@ -106,7 +107,7 @@ async def list_activities(current_user: TokenData = Depends(get_current_user)):
 
 @router.get("/{activity_id}", response_model=ActivityResponse)
 async def get_activity(
-    activity_id: int, current_user: TokenData = Depends(get_current_user)
+    activity_id: int, _: TokenData = Depends(require_aluno_or_staff)
 ):
     """Obtém uma atividade específica por ID"""
     conn = None
@@ -140,9 +141,9 @@ async def get_activity(
 
 @router.post("/", response_model=ActivityResponse, status_code=201)
 async def create_activity(
-    activity: ActivityCreate, current_user: TokenData = Depends(get_current_user)
+    activity: ActivityCreate, _: TokenData = Depends(require_staff_user)
 ):
-    """Cria uma nova atividade"""
+    """Cria uma nova atividade (administrador ou professor)."""
     conn = None
     try:
         conn = get_db_connection()
@@ -225,9 +226,9 @@ def _build_activity_updates(activity: ActivityUpdate):
 async def update_activity(
     activity_id: int,
     activity: ActivityUpdate,
-    current_user: TokenData = Depends(get_current_user),
+    _: TokenData = Depends(require_staff_user),
 ):
-    """Atualiza uma atividade existente"""
+    """Atualiza uma atividade existente (administrador ou professor)."""
     conn = None
     try:
         conn = get_db_connection()
@@ -288,10 +289,8 @@ async def update_activity(
 
 
 @router.delete("/{activity_id}", status_code=204)
-async def delete_activity(
-    activity_id: int, current_user: TokenData = Depends(get_current_user)
-):
-    """Deleta uma atividade"""
+async def delete_activity(activity_id: int, _: TokenData = Depends(require_staff_user)):
+    """Remove uma atividade (administrador ou professor)."""
     conn = None
     try:
         conn = get_db_connection()

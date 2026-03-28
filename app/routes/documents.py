@@ -7,6 +7,7 @@ import os
 from datetime import datetime
 import logging
 from dotenv import load_dotenv
+from app.core.roles import is_staff
 from app.routes.auth import get_current_user, TokenData
 
 # Carregar variáveis de ambiente
@@ -70,12 +71,12 @@ class DocumentResponse(BaseModel):
 
 @router.get("/", response_model=List[DocumentResponse])
 async def list_documents(current_user: TokenData = Depends(get_current_user)):
-    """Lista todos os documentos"""
+    """Lista documentos: aluno só os próprios; staff vê todos."""
     conn = None
     try:
         conn = get_db_connection()
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute("""
+            base = """
                 SELECT
                     d.document_id,
                     d.document_name,
@@ -86,8 +87,14 @@ async def list_documents(current_user: TokenData = Depends(get_current_user)):
                     d.updated_at
                 FROM documents d
                 JOIN users u ON d.created_by = u.user_id
-                ORDER BY d.updated_at DESC
-            """)
+            """
+            if is_staff(current_user.user_type):
+                cur.execute(base + " ORDER BY d.updated_at DESC")
+            else:
+                cur.execute(
+                    base + " WHERE d.created_by = %s ORDER BY d.updated_at DESC",
+                    (current_user.user_id,),
+                )
             documents = cur.fetchall()
             return [dict(doc) for doc in documents]
     except HTTPException:
@@ -130,6 +137,11 @@ async def get_document(
             document = cur.fetchone()
             if not document:
                 raise HTTPException(status_code=404, detail="Documento não encontrado")
+            if (
+                not is_staff(current_user.user_type)
+                and document["created_by"] != current_user.user_id
+            ):
+                raise HTTPException(status_code=403, detail="Permissão negada")
             return dict(document)
     except HTTPException:
         raise
@@ -219,6 +231,12 @@ async def update_document(
             if not existing:
                 raise HTTPException(status_code=404, detail="Documento não encontrado")
 
+            if (
+                not is_staff(current_user.user_type)
+                and existing["created_by"] != current_user.user_id
+            ):
+                raise HTTPException(status_code=403, detail="Permissão negada")
+
             # Monta a query dinamicamente
             updates = []
             values = []
@@ -307,11 +325,14 @@ async def delete_document(
         with conn.cursor() as cur:
             # Verifica se o documento existe
             cur.execute(
-                "SELECT document_id FROM documents WHERE document_id = %s",
+                "SELECT document_id, created_by FROM documents WHERE document_id = %s",
                 (document_id,),
             )
-            if not cur.fetchone():
+            row = cur.fetchone()
+            if not row:
                 raise HTTPException(status_code=404, detail="Documento não encontrado")
+            if not is_staff(current_user.user_type) and row[1] != current_user.user_id:
+                raise HTTPException(status_code=403, detail="Permissão negada")
 
             cur.execute("DELETE FROM documents WHERE document_id = %s", (document_id,))
             conn.commit()

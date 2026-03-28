@@ -8,6 +8,7 @@ from datetime import datetime
 import logging
 import json
 from dotenv import load_dotenv
+from app.core.roles import ROLE_ALUNO, is_staff
 from app.routes.auth import get_current_user, TokenData
 from app.core.session_cache import register_session, complete_session
 from app.routes.user_levels import evaluate_user_level
@@ -312,6 +313,7 @@ async def get_activity_session(
                 SELECT
                     asess.activity_session_id,
                     asess.user_session_id,
+                    us.user_id,
                     asess.activity_id,
                     u.user_name,
                     a.activity_name,
@@ -331,7 +333,14 @@ async def get_activity_session(
                 raise HTTPException(
                     status_code=404, detail="Sessão de atividade não encontrada"
                 )
-            return dict(session)
+            if (
+                not is_staff(current_user.user_type)
+                and session["user_id"] != current_user.user_id
+            ):
+                raise HTTPException(status_code=403, detail="Permissão negada")
+            out = dict(session)
+            out.pop("user_id", None)
+            return out
     except HTTPException:
         raise
     except Exception as e:
@@ -345,12 +354,12 @@ async def get_activity_session(
 
 @router.get("/", response_model=List[ActivitySessionResponse])
 async def list_activity_sessions(current_user: TokenData = Depends(get_current_user)):
-    """Lista todas as sessões de atividades"""
+    """Lista sessões de atividade: aluno só as próprias; staff todas."""
     conn = None
     try:
         conn = get_db_connection()
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute("""
+            base = """
                 SELECT
                     asess.activity_session_id,
                     asess.user_session_id,
@@ -364,8 +373,18 @@ async def list_activity_sessions(current_user: TokenData = Depends(get_current_u
                 JOIN user_sessions us ON asess.user_session_id = us.user_session_id
                 JOIN users u ON us.user_id = u.user_id
                 JOIN activities a ON asess.activity_id = a.activity_id
-                ORDER BY asess.initiated_at DESC
-            """)
+            """
+            if is_staff(current_user.user_type):
+                cur.execute(base + " ORDER BY asess.initiated_at DESC")
+            elif current_user.user_type == ROLE_ALUNO:
+                cur.execute(
+                    base + " WHERE us.user_id = %s ORDER BY asess.initiated_at DESC",
+                    (current_user.user_id,),
+                )
+            else:
+                raise HTTPException(
+                    status_code=403, detail="Papel de usuário não suportado"
+                )
             sessions = cur.fetchall()
             return [dict(session) for session in sessions]
     except HTTPException:

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import List, Optional
 import psycopg2
 from psycopg2.extras import RealDictCursor
@@ -9,6 +9,13 @@ from datetime import datetime
 import bcrypt
 import logging
 from dotenv import load_dotenv
+from app.core.roles import (
+    ALLOWED_USER_TYPES,
+    ROLE_ALUNO,
+    ROLE_PROFESSOR,
+    STAFF_ROLES,
+)
+from app.deps.authz import assert_self_or_staff, require_admin_user, require_staff_user
 from app.routes.auth import get_current_user, TokenData
 
 # Carregar variáveis de ambiente do arquivo .env
@@ -54,14 +61,34 @@ def get_db_connection():
 # Modelos Pydantic
 class UserCreate(BaseModel):
     user_name: str
-    user_type: str  # Qualquer tipo de usuário (aluno, professor, administrador, etc.)
+    user_type: str
     password: str
+
+    @field_validator("user_type")
+    @classmethod
+    def user_type_must_be_canonical(cls, v: str) -> str:
+        if v not in ALLOWED_USER_TYPES:
+            raise ValueError(
+                f"user_type deve ser um de: {', '.join(sorted(ALLOWED_USER_TYPES))}"
+            )
+        return v
 
 
 class UserUpdate(BaseModel):
     user_name: Optional[str] = None
     user_type: Optional[str] = None
     password: Optional[str] = None
+
+    @field_validator("user_type")
+    @classmethod
+    def user_type_optional_canonical(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        if v not in ALLOWED_USER_TYPES:
+            raise ValueError(
+                f"user_type deve ser um de: {', '.join(sorted(ALLOWED_USER_TYPES))}"
+            )
+        return v
 
 
 class UserResponse(BaseModel):
@@ -108,8 +135,8 @@ async def get_current_user_optional(
 
 
 @router.get("/", response_model=List[UserResponse])
-async def list_users(current_user: TokenData = Depends(get_current_user)):
-    """Lista todos os usuários"""
+async def list_users(_: TokenData = Depends(require_staff_user)):
+    """Lista todos os usuários (administrador ou professor)."""
     conn = None
     try:
         conn = get_db_connection()
@@ -134,8 +161,9 @@ async def list_users(current_user: TokenData = Depends(get_current_user)):
 
 
 @router.get("/{user_id}", response_model=UserResponse)
-async def get_user(user_id: int):
-    """Obtém um usuário específico por ID"""
+async def get_user(user_id: int, current_user: TokenData = Depends(get_current_user)):
+    """Obtém um usuário por ID (próprio registro ou, se staff, qualquer um)."""
+    assert_self_or_staff(current_user, user_id)
     conn = None
     try:
         conn = get_db_connection()
@@ -163,7 +191,7 @@ async def get_user(user_id: int):
 
 
 @router.post("/", response_model=UserResponse, status_code=201)
-async def create_user(
+async def create_user(  # noqa: C901
     user: UserCreate,
     current_user: Optional[TokenData] = Depends(get_current_user_optional),
 ):
@@ -177,12 +205,25 @@ async def create_user(
         # Verificar se há usuários no sistema
         system_has_users = has_users()
 
-        # Se já existem usuários, requer autenticação
+        # Se já existem usuários, requer staff
         if system_has_users and current_user is None:
             raise HTTPException(
                 status_code=401,
                 detail="Autenticação necessária para criar usuários quando já existem usuários no sistema",
             )
+
+        if system_has_users and current_user.user_type not in STAFF_ROLES:
+            raise HTTPException(
+                status_code=403,
+                detail="Apenas administrador ou professor pode criar usuários",
+            )
+
+        if system_has_users and current_user.user_type == ROLE_PROFESSOR:
+            if user.user_type != ROLE_ALUNO:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Professor só pode criar usuários com tipo aluno",
+                )
 
         conn = get_db_connection()
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
@@ -239,12 +280,6 @@ async def create_user(
             conn.close()
 
 
-def _validate_user_type(user_type: Optional[str]):
-    """Valida o tipo de usuário (removida restrição para permitir categorias customizadas)"""
-    # Validação removida para permitir qualquer tipo de usuário
-    pass
-
-
 def _hash_password(password: str) -> str:
     """Gera hash da senha"""
     salt = bcrypt.gensalt()
@@ -274,10 +309,26 @@ def _build_user_updates(user: UserUpdate):
 
 
 @router.put("/{user_id}", response_model=UserResponse)
-async def update_user(
+async def update_user(  # noqa: C901
     user_id: int, user: UserUpdate, current_user: TokenData = Depends(get_current_user)
 ):
     """Atualiza um usuário existente"""
+    assert_self_or_staff(current_user, user_id)
+
+    if current_user.user_type == ROLE_ALUNO and current_user.user_id == user_id:
+        if user.user_type is not None:
+            raise HTTPException(
+                status_code=403,
+                detail="Aluno não pode alterar o próprio tipo de usuário",
+            )
+
+    if current_user.user_type == ROLE_PROFESSOR and user.user_type is not None:
+        if user.user_type != ROLE_ALUNO:
+            raise HTTPException(
+                status_code=400,
+                detail="Professor só pode definir tipo de usuário como aluno",
+            )
+
     conn = None
     try:
         conn = get_db_connection()
@@ -286,9 +337,6 @@ async def update_user(
             cur.execute("SELECT user_id FROM users WHERE user_id = %s", (user_id,))
             if not cur.fetchone():
                 raise HTTPException(status_code=404, detail="Usuário não encontrado")
-
-            # Validação do tipo de usuário se fornecido
-            _validate_user_type(user.user_type)
 
             # Monta a query dinamicamente baseado nos campos fornecidos
             updates, values = _build_user_updates(user)
@@ -336,10 +384,8 @@ async def update_user(
 
 
 @router.delete("/{user_id}", status_code=204)
-async def delete_user(
-    user_id: int, current_user: TokenData = Depends(get_current_user)
-):
-    """Deleta um usuário"""
+async def delete_user(user_id: int, _: TokenData = Depends(require_admin_user)):
+    """Remove um usuário (somente administrador)."""
     conn = None
     try:
         conn = get_db_connection()
