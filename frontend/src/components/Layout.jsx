@@ -70,14 +70,18 @@ function Layout({ onLogout }) {
     const ctx = questContext;
     const act = currentActivity;
     if (!ctx || !act) return;
+    const step = ctx.steps[ctx.currentStepIndex];
+    if (!step) return;
     try {
-      await api.quests.completeStep(ctx.questId, { activity_id: act.id });
+      await api.quests.completeStep(ctx.questId, {
+        quest_step_id: step.quest_step_id,
+      });
     } catch (e) {
       console.error(e);
       return;
     }
     // Fluxo linear conforme quest_steps; exploração livre (mapa) virá depois.
-    const idx = ctx.steps.findIndex((s) => s.activity_id === act.id);
+    const idx = ctx.currentStepIndex;
     const next = ctx.steps[idx + 1];
     if (next) {
       setQuestContext((prev) =>

@@ -19,7 +19,8 @@ function Quest({
 
   const [view, setView] = useState('list');
   const [detailQuestId, setDetailQuestId] = useState(null);
-  const [formQuestId, setFormQuestId] = useState(null);
+  /** Ao "editar", guarda o id da quest base; ao salvar, POST cria nova versão (fork). */
+  const [forkFromQuestId, setForkFromQuestId] = useState(null);
 
   const [quests, setQuests] = useState([]);
   const [detail, setDetail] = useState(null);
@@ -98,7 +99,7 @@ function Quest({
   };
 
   const openNewForm = () => {
-    setFormQuestId(null);
+    setForkFromQuestId(null);
     setFormName('');
     setFormDescription('');
     setFormObjective('');
@@ -108,17 +109,15 @@ function Quest({
   };
 
   const openEditForm = (questId) => {
-    setFormQuestId(questId);
+    setForkFromQuestId(questId);
     setFormError(null);
     setView('form');
-    loadDetail(questId).then(() => {
-      /* filled in effect below */
-    });
+    loadDetail(questId);
   };
 
   useEffect(() => {
-    if (view !== 'form' || formQuestId == null) return;
-    if (!detail || detail.quest.quest_id !== formQuestId) return;
+    if (view !== 'form' || forkFromQuestId == null) return;
+    if (!detail || detail.quest.quest_id !== forkFromQuestId) return;
     const q = detail.quest;
     setFormName(q.quest_name);
     setFormDescription(q.quest_description || '');
@@ -130,14 +129,13 @@ function Quest({
         activity_type: s.activity_type,
       }))
     );
-  }, [view, formQuestId, detail]);
+  }, [view, forkFromQuestId, detail]);
 
   const addStepFromSelect = (e) => {
     const id = Number(e.target.value);
     if (!id) return;
     const act = activities.find((a) => a.activity_id === id);
     if (!act) return;
-    if (formSteps.some((s) => s.activity_id === id)) return;
     setFormSteps((prev) => [
       ...prev,
       {
@@ -184,18 +182,18 @@ function Quest({
       quest_objective: formObjective.trim() || null,
       enforce_sequence: true,
       steps,
+      ...(forkFromQuestId != null
+        ? { fork_from_quest_id: forkFromQuestId }
+        : {}),
     };
     setSaving(true);
     try {
-      if (formQuestId) {
-        await api.quests.update(formQuestId, body);
-      } else {
-        await api.quests.create(body);
-      }
+      await api.quests.create(body);
       await loadList();
       setView('list');
       setDetailQuestId(null);
       setDetail(null);
+      setForkFromQuestId(null);
     } catch (err) {
       setFormError(err.message || 'Erro ao salvar');
     } finally {
@@ -219,16 +217,16 @@ function Quest({
   };
 
   const completedSet = detail?.progress
-    ? new Set(detail.progress.completed_activity_ids || [])
+    ? new Set(detail.progress.completed_quest_step_ids || [])
     : new Set();
   const orderedSteps = detail?.quest
     ? [...detail.quest.steps].sort((a, b) => a.step_order - b.step_order)
     : [];
-  const nextEnforced = orderedSteps.find((s) => !completedSet.has(s.activity_id));
+  const nextEnforced = orderedSteps.find((s) => !completedSet.has(s.quest_step_id));
   const hasProgress = Boolean(detail?.progress);
   const questDone =
     orderedSteps.length > 0 &&
-    orderedSteps.every((s) => completedSet.has(s.activity_id));
+    orderedSteps.every((s) => completedSet.has(s.quest_step_id));
 
   const beginQuest = async (resetProgress) => {
     if (!detail?.quest) return;
@@ -249,6 +247,7 @@ function Quest({
     onStartQuestActivity({
       questId: q.quest_id,
       steps: ordered.map((s) => ({
+        quest_step_id: s.quest_step_id,
         activity_id: s.activity_id,
         activity_type: s.activity_type,
         step_order: s.step_order,
@@ -267,6 +266,7 @@ function Quest({
     onStartQuestActivity({
       questId: q.quest_id,
       steps: ordered.map((s) => ({
+        quest_step_id: s.quest_step_id,
         activity_id: s.activity_id,
         activity_type: s.activity_type,
         step_order: s.step_order,
@@ -275,7 +275,7 @@ function Quest({
       activityId: nextEnforced.activity_id,
       activityType: normalizeActivityType(nextEnforced.activity_type),
       currentStepIndex: ordered.findIndex(
-        (s) => s.activity_id === nextEnforced.activity_id
+        (s) => s.quest_step_id === nextEnforced.quest_step_id
       ),
     });
   };
@@ -287,11 +287,11 @@ function Quest({
           <BackButton
             onClick={() => {
               setView('list');
-              setFormQuestId(null);
+              setForkFromQuestId(null);
             }}
           />
           <h1 className="text-2xl font-bold text-[#333333]">
-            {formQuestId ? 'Editar quest' : 'Nova quest'}
+            {forkFromQuestId != null ? 'Nova versão da quest' : 'Nova quest'}
           </h1>
         </div>
 
@@ -300,6 +300,12 @@ function Quest({
           className="bg-white rounded-lg shadow border border-[#D9D9D9] p-6 space-y-4"
         >
           <ErrorAlert message={formError} />
+          {forkFromQuestId != null && (
+            <p className="text-sm text-[#555555] bg-[#F5F6F7] border border-[#E8E8E8] rounded-lg p-3">
+              Será criada uma <strong>nova</strong> quest. Quem já iniciou a versão
+              anterior mantém o progresso nela até concluir.
+            </p>
+          )}
           <div>
             <label className="block text-sm font-medium text-[#333333] mb-1">
               Nome
