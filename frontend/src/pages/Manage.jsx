@@ -488,7 +488,8 @@ function Manage() {
           <p className="text-[#777777] text-sm">
             Consulte as tabelas do sistema com filtros personalizados.
             <span className="block mt-1 text-xs text-[#9a9a9a]">
-              «Reavaliar Níveis» pode demorar vários minutos com muitos utilizadores.
+              «Reavaliar Níveis» pode demorar vários minutos com muitos
+              utilizadores.
             </span>
           </p>
         </div>

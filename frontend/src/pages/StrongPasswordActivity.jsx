@@ -107,7 +107,10 @@ function StrongPasswordActivity({
 
   const pushEvent = useCallback(
     (ev) => {
-      eventsRef.current = [...eventsRef.current, { ...ev, round: currentRound }];
+      eventsRef.current = [
+        ...eventsRef.current,
+        { ...ev, round: currentRound },
+      ];
     },
     [currentRound]
   );
@@ -190,10 +193,7 @@ function StrongPasswordActivity({
       setActivitySessionId(session.activity_session_id);
       const sr = session.results || {};
       setChallenge(sr.challenge ?? null);
-      const rt = Math.max(
-        1,
-        Number(sr.rounds_total ?? p.rounds_total ?? 1)
-      );
+      const rt = Math.max(1, Number(sr.rounds_total ?? p.rounds_total ?? 1));
       setRoundsTotal(rt);
       setCurrentRound(1);
       setRoundsSummary([]);
@@ -223,8 +223,7 @@ function StrongPasswordActivity({
     setSubmitting(true);
     const nextAttempt = attempts + 1;
     setAttempts(nextAttempt);
-    const finalRound =
-      roundsTotal <= 1 || currentRound === roundsTotal;
+    const finalRound = roundsTotal <= 1 || currentRound === roundsTotal;
     try {
       const res = await api.activities.validateSenhaForte({
         activity_id: activityId,
@@ -243,7 +242,8 @@ function StrongPasswordActivity({
       const firstMs = firstKeydownMsRef.current;
       const lastMs = lastKeydownMsRef.current;
       let durationMs = 0;
-      if (firstMs != null && lastMs != null) durationMs = Math.max(0, lastMs - firstMs);
+      if (firstMs != null && lastMs != null)
+        durationMs = Math.max(0, lastMs - firstMs);
 
       const summaryRow = {
         round: currentRound,
@@ -358,14 +358,14 @@ function StrongPasswordActivity({
           className="mb-4 text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-lg p-3"
           role="status"
         >
-          Ainda não tem parâmetros de nível atribuídos a si para esta atividade: as
-          regras abaixo são genéricas e a validação pode falhar até um professor
-          associar o nível (ou após «Reavaliar Níveis» em Gerenciar).
+          Ainda não tem parâmetros de nível atribuídos a si para esta atividade:
+          as regras abaixo são genéricas e a validação pode falhar até um
+          professor associar o nível (ou após «Reavaliar Níveis» em Gerenciar).
         </div>
       )}
       <p className="text-sm text-[#666666] mb-4">
-        Invente uma senha fictícia que cumpra as regras. Use «Testar senha» quando
-        estiver pronto.
+        Invente uma senha fictícia que cumpra as regras. Use «Testar senha»
+        quando estiver pronto.
       </p>
       <ul className="text-sm text-[#555555] mb-4 list-disc pl-5 space-y-1">
         {req.map((r) => (
@@ -500,7 +500,11 @@ function StrongPasswordActivity({
               className="flex items-center justify-center w-20 h-20 rounded-full bg-[#E6A8D7] hover:bg-[#d897c8] text-white shadow-lg transition-all hover:scale-110 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
             >
               {submitting ? (
-                <svg className="w-8 h-8 animate-spin" viewBox="0 0 24 24" fill="none">
+                <svg
+                  className="w-8 h-8 animate-spin"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                >
                   <circle
                     className="opacity-25"
                     cx="12"
@@ -516,7 +520,11 @@ function StrongPasswordActivity({
                   />
                 </svg>
               ) : (
-                <svg className="w-10 h-10" fill="currentColor" viewBox="0 0 24 24">
+                <svg
+                  className="w-10 h-10"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
                   <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z" />
                 </svg>
               )}
