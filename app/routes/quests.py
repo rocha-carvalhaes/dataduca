@@ -52,6 +52,8 @@ class QuestListItem(BaseModel):
     enforce_sequence: bool
     step_count: int
     superseded_by_quest_id: Optional[int] = None
+    # Progresso do usuário autenticado nesta quest (null = nunca iniciou).
+    user_quest_status: Optional[str] = None
 
 
 class QuestStepOut(BaseModel):
@@ -379,17 +381,23 @@ async def list_quests(user: TokenData = Depends(require_aluno_or_staff)):
         conn = get_db_connection()
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             # Só versões atuais (não substituídas por fork); obsoletas ficam fora da lista.
-            cur.execute("""
+            cur.execute(
+                """
                 SELECT q.quest_id, q.quest_name, q.quest_description, q.enforce_sequence,
                        q.superseded_by_quest_id,
+                       MAX(uqp.status) AS user_quest_status,
                        COUNT(qs.quest_step_id)::int AS step_count
                 FROM quests q
                 LEFT JOIN quest_steps qs ON qs.quest_id = q.quest_id
+                LEFT JOIN user_quest_progress uqp
+                  ON uqp.quest_id = q.quest_id AND uqp.user_id = %s
                 WHERE q.superseded_by_quest_id IS NULL
                 GROUP BY q.quest_id, q.quest_name, q.quest_description, q.enforce_sequence,
                          q.superseded_by_quest_id
                 ORDER BY q.updated_at DESC
-                """)
+                """,
+                (user.user_id,),
+            )
             rows = cur.fetchall()
             return [
                 QuestListItem(
@@ -399,6 +407,7 @@ async def list_quests(user: TokenData = Depends(require_aluno_or_staff)):
                     enforce_sequence=r["enforce_sequence"],
                     step_count=r["step_count"] or 0,
                     superseded_by_quest_id=r["superseded_by_quest_id"],
+                    user_quest_status=r.get("user_quest_status"),
                 )
                 for r in rows
             ]

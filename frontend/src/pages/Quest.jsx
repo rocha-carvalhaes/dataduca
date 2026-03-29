@@ -56,8 +56,10 @@ function Quest({ onStartQuestActivity, resumeQuestId, onResumeConsumed }) {
   }, []);
 
   useEffect(() => {
-    loadList();
-  }, [loadList]);
+    if (view === 'list') {
+      loadList();
+    }
+  }, [view, loadList]);
 
   useEffect(() => {
     if (isStaff) loadActivities();
@@ -533,6 +535,11 @@ function Quest({ onStartQuestActivity, resumeQuestId, onResumeConsumed }) {
               <h3 className="text-xl font-semibold text-[#333333] mb-2">
                 {q.quest_name}
               </h3>
+              {q.user_quest_status === 'completed' && (
+                <p className="text-xs font-semibold text-[#5FA86D] mb-2 uppercase tracking-wide">
+                  Concluída
+                </p>
+              )}
               <p className="text-sm text-[#777777] mb-4 flex-1">
                 {q.quest_description || 'Sem descrição'}
               </p>
