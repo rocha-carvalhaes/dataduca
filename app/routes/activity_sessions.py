@@ -74,7 +74,7 @@ class ActivitySessionResponse(BaseModel):
 
 
 @router.post("/", response_model=ActivitySessionResponse, status_code=201)
-async def create_activity_session(
+async def create_activity_session(  # noqa: C901
     session_data: ActivitySessionCreate,
     current_user: TokenData = Depends(get_current_user),
 ):
@@ -123,6 +123,60 @@ async def create_activity_session(
                 ),
             )
             new_session = cur.fetchone()
+
+            merged_results = dict(initial_results)
+            cur.execute(
+                "SELECT activity_type FROM activities WHERE activity_id = %s",
+                (session_data.activity_id,),
+            )
+            at_row = cur.fetchone()
+            if at_row and at_row.get("activity_type") == "senha_forte":
+                cur.execute(
+                    """
+                    SELECT ap.level_params
+                    FROM user_activity_params uap
+                    JOIN activity_params ap ON uap.activity_param_id = ap.activity_param_id
+                    WHERE uap.user_id = %s AND ap.activity_id = %s
+                        AND uap.active = TRUE AND ap.active = TRUE
+                    ORDER BY uap.initiated_at DESC
+                    LIMIT 1
+                    """,
+                    (current_user.user_id, session_data.activity_id),
+                )
+                lp_row = cur.fetchone()
+                if lp_row and lp_row.get("level_params"):
+                    lp = lp_row["level_params"]
+                    if isinstance(lp, str):
+                        lp = json.loads(lp)
+                    from app.core.strong_password import (
+                        challenge_seed_from_session,
+                        generate_senha_forte_challenge,
+                        get_rounds_total,
+                        is_multi_round,
+                    )
+
+                    if is_multi_round(lp):
+                        sid = new_session["activity_session_id"]
+                        seed = challenge_seed_from_session(sid, current_user.user_id)
+                        ch = generate_senha_forte_challenge(lp, seed)
+                        merged_results.update(
+                            {
+                                "senha_forte_version": 2,
+                                "current_round": 1,
+                                "rounds_total": get_rounds_total(lp),
+                                "challenge": ch,
+                            }
+                        )
+                        cur.execute(
+                            """
+                            UPDATE activity_sessions
+                            SET results = %s
+                            WHERE activity_session_id = %s
+                            """,
+                            (json.dumps(merged_results), sid),
+                        )
+                        new_session = dict(new_session)
+                        new_session["results"] = merged_results
 
             # Buscar informações adicionais para a resposta
             cur.execute(
@@ -179,7 +233,8 @@ async def update_activity_session(  # noqa: C901
             # Também verificar se já estava finalizada antes
             cur.execute(
                 """
-                SELECT asess.activity_session_id, asess.user_session_id, asess.ended_at
+                SELECT asess.activity_session_id, asess.user_session_id, asess.ended_at,
+                       asess.activity_id, asess.results
                 FROM activity_sessions asess
                 JOIN user_sessions us ON asess.user_session_id = us.user_session_id
                 WHERE asess.activity_session_id = %s AND us.user_id = %s
@@ -195,9 +250,58 @@ async def update_activity_session(  # noqa: C901
             # Verificar se a sessão já estava finalizada antes
             was_already_finalized = session.get("ended_at") is not None
 
+            activity_id = session["activity_id"]
+            results_to_save = (
+                dict(session_data.results)
+                if isinstance(session_data.results, dict)
+                else {}
+            )
+
+            cur.execute(
+                "SELECT activity_type FROM activities WHERE activity_id = %s",
+                (activity_id,),
+            )
+            at_row = cur.fetchone()
+            activity_type = (at_row or {}).get("activity_type")
+
+            if activity_type == "senha_forte":
+                cur.execute(
+                    """
+                    SELECT ap.level_params
+                    FROM user_activity_params uap
+                    JOIN activity_params ap ON uap.activity_param_id = ap.activity_param_id
+                    WHERE uap.user_id = %s AND ap.activity_id = %s
+                        AND uap.active = TRUE AND ap.active = TRUE
+                    ORDER BY uap.initiated_at DESC
+                    LIMIT 1
+                    """,
+                    (current_user.user_id, activity_id),
+                )
+                lp_row = cur.fetchone()
+                if not lp_row or not lp_row.get("level_params"):
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Parâmetros de nível não encontrados para esta atividade.",
+                    )
+                lp = lp_row["level_params"]
+                if isinstance(lp, str):
+                    lp = json.loads(lp)
+                from app.core.strong_password import finalize_senha_forte_results
+
+                stored = session.get("results") or {}
+                if isinstance(stored, str):
+                    stored = json.loads(stored)
+                ch_server = (stored or {}).get("challenge")
+                if ch_server:
+                    results_to_save["challenge"] = ch_server
+
+                results_to_save = finalize_senha_forte_results(
+                    results_to_save, lp, challenge=ch_server
+                )
+
             # Atualizar a sessão com resultados e data de término
             update_query = "UPDATE activity_sessions SET results = %s"
-            update_values = [json.dumps(session_data.results)]
+            update_values = [json.dumps(results_to_save)]
 
             if session_data.ended_at:
                 update_query += ", ended_at = %s"

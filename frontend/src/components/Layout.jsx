@@ -6,6 +6,7 @@ import Quest from '../pages/Quest';
 import TypingActivity from '../pages/TypingActivity';
 import UnscramblePhrases from '../pages/UnscramblePhrases';
 import WritingActivity from '../pages/WritingActivity';
+import StrongPasswordActivity from '../pages/StrongPasswordActivity';
 import Manage from '../pages/Manage';
 import Documents from '../pages/Documents';
 import { authStorage } from '../utils/auth';
@@ -144,6 +145,15 @@ function Layout({ onLogout }) {
         case 'escrita':
           return (
             <WritingActivity
+              onBack={activityOnBack}
+              activityId={currentActivity.id}
+              onQuestActivityFinished={questFinishedCallback}
+              allowReplayAfterComplete={allowReplayAfterComplete}
+            />
+          );
+        case 'senha_forte':
+          return (
+            <StrongPasswordActivity
               onBack={activityOnBack}
               activityId={currentActivity.id}
               onQuestActivityFinished={questFinishedCallback}

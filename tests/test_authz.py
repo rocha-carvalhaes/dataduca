@@ -37,3 +37,16 @@ def test_activities_list_requires_auth(client: TestClient):
 def test_quests_list_requires_auth(client: TestClient):
     r = client.get("/api/quests/")
     assert r.status_code == 401
+
+
+def test_senha_forte_params_requires_auth_with_activity_id(client: TestClient):
+    r = client.get("/api/activities/senha-forte/params?activity_id=1")
+    assert r.status_code == 401
+
+
+def test_senha_forte_validate_requires_auth(client: TestClient):
+    r = client.post(
+        "/api/activities/senha-forte/validate",
+        json={"activity_id": 1, "password": "x"},
+    )
+    assert r.status_code == 401

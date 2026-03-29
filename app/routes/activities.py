@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Optional
 from psycopg2.extras import RealDictCursor
 import logging
@@ -265,3 +265,225 @@ async def get_writing_params(
 
     # Retornar parâmetros padrão se não encontrar personalizados
     return default_params
+
+
+class StrongPasswordParams(BaseModel):
+    """Parâmetros de nível expostos ao cliente (senha fictícia)."""
+
+    min_length: int = 4
+    require_uppercase: bool = True
+    require_lowercase: bool = True
+    require_digit: bool = False
+    require_symbol: bool = False
+    require_password_confirmation: bool = False
+    confirmation_must_match: bool = True
+    symbol_class: str = "ascii_punctuation"
+    specificity_count: int = Field(
+        1,
+        ge=1,
+        le=3,
+        description="Caracteres específicos por camada (R2 letras; R3 dígitos/símbolos).",
+    )
+    rounds_total: int = Field(
+        1,
+        ge=1,
+        le=10,
+        description="Sem valor no JSON de nível = 1 (modo antigo). Use 3 para três rodadas.",
+    )
+    using_defaults: bool = Field(
+        False,
+        description="Sem vínculo ativo user_activity_params+activity_params; regras genéricas.",
+    )
+
+
+class SenhaForteValidateBody(BaseModel):
+    activity_id: int
+    activity_session_id: int
+    round: int = Field(1, ge=1, le=10)
+    password: str = ""
+    password_confirm: Optional[str] = None
+
+
+@router.get("/senha-forte/params", response_model=StrongPasswordParams)
+async def get_senha_forte_params(
+    activity_id: Optional[int] = None,
+    current_user: Optional[TokenData] = Depends(get_current_user),
+):
+    default_params = StrongPasswordParams()
+    if not activity_id:
+        return default_params
+    if current_user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Autenticação necessária para parâmetros personalizados desta atividade",
+        )
+    conn = None
+    try:
+        conn = get_db_connection()
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(
+                """
+                SELECT ap.level_params
+                FROM user_activity_params uap
+                JOIN activity_params ap ON uap.activity_param_id = ap.activity_param_id
+                WHERE uap.user_id = %s
+                    AND ap.activity_id = %s
+                    AND uap.active = TRUE
+                    AND ap.active = TRUE
+                ORDER BY uap.initiated_at DESC
+                LIMIT 1
+                """,
+                (current_user.user_id, activity_id),
+            )
+            result = cur.fetchone()
+            if result and result["level_params"]:
+                params = result["level_params"]
+                return StrongPasswordParams(
+                    min_length=int(params.get("min_length", default_params.min_length)),
+                    require_uppercase=bool(
+                        params.get(
+                            "require_uppercase", default_params.require_uppercase
+                        )
+                    ),
+                    require_lowercase=bool(
+                        params.get(
+                            "require_lowercase", default_params.require_lowercase
+                        )
+                    ),
+                    require_digit=bool(
+                        params.get("require_digit", default_params.require_digit)
+                    ),
+                    require_symbol=bool(
+                        params.get("require_symbol", default_params.require_symbol)
+                    ),
+                    require_password_confirmation=bool(
+                        params.get(
+                            "require_password_confirmation",
+                            default_params.require_password_confirmation,
+                        )
+                    ),
+                    confirmation_must_match=bool(
+                        params.get(
+                            "confirmation_must_match",
+                            default_params.confirmation_must_match,
+                        )
+                    ),
+                    symbol_class=str(
+                        params.get("symbol_class", default_params.symbol_class)
+                    ),
+                    specificity_count=int(
+                        params.get(
+                            "specificity_count", default_params.specificity_count
+                        )
+                    ),
+                    rounds_total=int(
+                        params.get("rounds_total", default_params.rounds_total)
+                    ),
+                    using_defaults=False,
+                )
+    except Exception as e:
+        logger.warning(
+            "Erro ao buscar parâmetros senha forte: %s. Retornando padrão.", str(e)
+        )
+    finally:
+        if conn:
+            conn.close()
+    return default_params.model_copy(update={"using_defaults": True})
+
+
+@router.post("/senha-forte/validate")
+async def post_senha_forte_validate(
+    body: SenhaForteValidateBody,
+    current_user: TokenData = Depends(get_current_user),
+):
+    from app.core.strong_password import (
+        get_rounds_total,
+        validate_password_against_level_params,
+        validate_password_for_round,
+    )
+
+    conn = None
+    try:
+        conn = get_db_connection()
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(
+                """
+                SELECT ap.level_params
+                FROM user_activity_params uap
+                JOIN activity_params ap ON uap.activity_param_id = ap.activity_param_id
+                WHERE uap.user_id = %s
+                    AND ap.activity_id = %s
+                    AND uap.active = TRUE
+                    AND ap.active = TRUE
+                ORDER BY uap.initiated_at DESC
+                LIMIT 1
+                """,
+                (current_user.user_id, body.activity_id),
+            )
+            result = cur.fetchone()
+            if not result or not result.get("level_params"):
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        "Não há parâmetros de nível atribuídos a si para esta atividade "
+                        "(user_activity_params + activity_params). "
+                        "Peça a um professor/administrador para associar um nível em "
+                        "«Parâmetros por utilizador» ou execute a reavaliação de níveis em Gerenciar."
+                    ),
+                )
+            lp = result["level_params"]
+            if isinstance(lp, str):
+                import json as _json
+
+                lp = _json.loads(lp)
+
+            cur.execute(
+                """
+                SELECT asess.results, asess.activity_id
+                FROM activity_sessions asess
+                JOIN user_sessions us ON asess.user_session_id = us.user_session_id
+                WHERE asess.activity_session_id = %s
+                    AND us.user_id = %s
+                    AND asess.activity_id = %s
+                """,
+                (
+                    body.activity_session_id,
+                    current_user.user_id,
+                    body.activity_id,
+                ),
+            )
+            sess_row = cur.fetchone()
+            if not sess_row:
+                raise HTTPException(
+                    status_code=404,
+                    detail="Sessão de atividade não encontrada para validação.",
+                )
+            res = sess_row.get("results") or {}
+            if isinstance(res, str):
+                import json as _json
+
+                res = _json.loads(res)
+            challenge = (res or {}).get("challenge")
+            rounds_total = get_rounds_total(lp)
+
+            if rounds_total >= 2:
+                if not challenge:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Crie uma nova sessão desta atividade (desafio em falta).",
+                    )
+                ok, msg = validate_password_for_round(
+                    lp,
+                    challenge,
+                    body.round,
+                    body.password,
+                    body.password_confirm,
+                )
+            else:
+                ok, msg = validate_password_against_level_params(
+                    lp, body.password, body.password_confirm
+                )
+    finally:
+        if conn:
+            conn.close()
+    return {"valid": ok, "message": msg}

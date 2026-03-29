@@ -121,7 +121,11 @@ async def evaluate_user_level(  # noqa: C901
             games_count = max(
                 level_up_params.get("games_count", 10),
                 level_down_params.get("games_count", 10),
+                level_up_params.get("sessions_count", 0),
+                level_down_params.get("sessions_count", 0),
             )
+            if games_count == 0:
+                games_count = 10
 
             # Buscar últimas N sessões (apenas as jogadas desde o início do nível atual)
             if level_start_date:
@@ -166,6 +170,11 @@ async def evaluate_user_level(  # noqa: C901
                     recent_sessions, level_up_params, level_down_params
                 )
                 logger.info(f"Resultado avaliação escrita: {evaluation}")
+            elif activity_type == "senha_forte":
+                evaluation = LevelEvaluator.evaluate_strong_password_activity(
+                    recent_sessions, level_up_params, level_down_params
+                )
+                logger.info(f"Resultado avaliação senha forte: {evaluation}")
             else:
                 logger.warning(f"Tipo de atividade '{activity_type}' não suportado")
                 return LevelUpdateResponse(
@@ -384,7 +393,7 @@ def _ensure_level_one(cur, conn) -> list:
 
 
 @router.post("/evaluate-all-users")
-async def evaluate_all_users_levels(
+async def evaluate_all_users_levels(  # noqa: C901
     current_user: TokenData = Depends(require_staff_user),
 ):
     """
@@ -423,6 +432,28 @@ async def evaluate_all_users_levels(
                 results.append(row)
                 if row.get("updated"):
                     updated_count += 1
+            except HTTPException as he:
+                error_count += 1
+                detail = he.detail
+                msg = detail if isinstance(detail, str) else str(detail)
+                logger.warning(
+                    "evaluate-all-users: user=%s activity=%s -> %s",
+                    uid,
+                    aid,
+                    msg,
+                )
+                results.append(
+                    {
+                        "user_id": uid,
+                        "activity_id": aid,
+                        "updated": False,
+                        "message": msg,
+                        "old_level": None,
+                        "new_level": None,
+                        "action": None,
+                        "reason": None,
+                    }
+                )
             except Exception as e:
                 error_count += 1
                 logger.error(
@@ -438,13 +469,37 @@ async def evaluate_all_users_levels(
                     }
                 )
 
+        total_evaluated = len(results)
+        hint = None
+        if total_evaluated == 0:
+            if not assigned:
+                hint = (
+                    "Nenhum par utilizador/atividade para avaliar e nenhum nível 1 "
+                    "foi atribuído automaticamente. Crie pelo menos um registo em "
+                    "activity_params com level=1 por atividade (ex.: migração SQL ou "
+                    "Gerenciar → Parâmetros de atividade) e execute de novo."
+                )
+            else:
+                hint = (
+                    "Foram atribuídos vínculos de nível 1, mas a lista de pares "
+                    "para avaliar veio vazia. Tente executar novamente ou verifique "
+                    "user_activity_params no banco."
+                )
+        elif updated_count == 0 and error_count == 0:
+            hint = (
+                "Nenhum nível foi alterado; é o comportamento habitual se os critérios "
+                "de subida/descida (sessões, medianas, etc.) ainda não foram atingidos. "
+                "Consulte o detalhe de cada linha abaixo."
+            )
+
         return {
-            "total_evaluated": len(results),
+            "total_evaluated": total_evaluated,
             "updated": updated_count,
             "errors": error_count,
             "assigned_level_one": len(assigned),
             "assigned_details": assigned,
             "results": results,
+            "hint": hint,
         }
 
     except HTTPException:

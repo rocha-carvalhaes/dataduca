@@ -2,6 +2,11 @@
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
+/** Reavalia todos os utilizadores × atividades (sequencial no servidor); pode demorar vários minutos. */
+const TIMEOUT_EVALUATE_ALL_USERS_MS = 600000; // 10 min
+/** Reavalia um utilizador em todas as atividades com nível atribuído. */
+const TIMEOUT_EVALUATE_ALL_FOR_USER_MS = 180000; // 3 min
+
 if (import.meta.env.PROD && !import.meta.env.VITE_API_BASE_URL) {
   console.error(
     '[Dataduca] VITE_API_BASE_URL não foi definida no build. Configure na Vercel (Environment Variables) e faça um novo deploy.'
@@ -142,6 +147,18 @@ export const api = {
         ? `/api/activities/writing/params?activity_id=${activityId}`
         : '/api/activities/writing/params';
       return api.request(url);
+    },
+    async getSenhaForteParams(activityId = null) {
+      const url = activityId
+        ? `/api/activities/senha-forte/params?activity_id=${activityId}`
+        : '/api/activities/senha-forte/params';
+      return api.request(url);
+    },
+    async validateSenhaForte(body) {
+      return api.request('/api/activities/senha-forte/validate', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      });
     },
     async list() {
       return api.request('/api/activities/list');
@@ -322,12 +339,13 @@ export const api = {
     async evaluateAll(userId) {
       return api.request(`/api/user-levels/evaluate-all/${userId}`, {
         method: 'POST',
+        timeout: TIMEOUT_EVALUATE_ALL_FOR_USER_MS,
       });
     },
     async evaluateAllUsers() {
       return api.request('/api/user-levels/evaluate-all-users', {
         method: 'POST',
-        timeout: 30000,
+        timeout: TIMEOUT_EVALUATE_ALL_USERS_MS,
       });
     },
   },

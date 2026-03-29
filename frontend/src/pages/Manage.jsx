@@ -486,7 +486,10 @@ function Manage() {
         <div>
           <h1 className="text-3xl font-bold text-[#333333] mb-1">Gerenciar</h1>
           <p className="text-[#777777] text-sm">
-            Consulte as tabelas do sistema com filtros personalizados
+            Consulte as tabelas do sistema com filtros personalizados.
+            <span className="block mt-1 text-xs text-[#9a9a9a]">
+              «Reavaliar Níveis» pode demorar vários minutos com muitos utilizadores.
+            </span>
           </p>
         </div>
         <button
@@ -509,12 +512,20 @@ function Manage() {
           <div className="flex items-center justify-between">
             <div className="text-sm text-green-800">
               <span className="font-semibold">Reavaliação concluída:</span>{' '}
-              {levelResult.total_evaluated}{' '}
-              {levelResult.total_evaluated > 1 ? 'avaliações' : 'avaliação'},{' '}
-              <span className="font-semibold text-green-700">
-                {levelResult.updated} atualizado
-                {levelResult.updated !== 1 ? 's' : ''}
-              </span>
+              {levelResult.total_evaluated === 0
+                ? 'nenhuma avaliação executada'
+                : `${levelResult.total_evaluated} ${
+                    levelResult.total_evaluated > 1 ? 'avaliações' : 'avaliação'
+                  }`}
+              {levelResult.total_evaluated > 0 ? (
+                <>
+                  {', '}
+                  <span className="font-semibold text-green-700">
+                    {levelResult.updated} atualizado
+                    {levelResult.updated !== 1 ? 's' : ''}
+                  </span>
+                </>
+              ) : null}
               {levelResult.assigned_level_one > 0 && (
                 <span className="text-blue-600">
                   , {levelResult.assigned_level_one} nível 1 atribuído
@@ -535,16 +546,26 @@ function Manage() {
               &times;
             </button>
           </div>
-          {levelResult.results?.some((r) => r.updated) && (
-            <div className="mt-2 text-xs text-green-700 space-y-0.5">
-              {levelResult.results
-                .filter((r) => r.updated)
-                .map((r, i) => (
-                  <div key={i}>
-                    Usuário {r.user_id}, Atividade {r.activity_id}: {r.message}
-                  </div>
+          {levelResult.hint && (
+            <p className="mt-2 text-sm text-[#2d5a32] border-l-4 border-[#7BC47F] pl-3">
+              {levelResult.hint}
+            </p>
+          )}
+          {levelResult.results && levelResult.results.length > 0 && (
+            <details className="mt-3">
+              <summary className="text-xs font-medium text-green-800 cursor-pointer select-none">
+                Ver todas as mensagens ({levelResult.results.length})
+              </summary>
+              <ul className="mt-2 text-xs text-[#333333] space-y-1 max-h-48 overflow-y-auto list-disc pl-5">
+                {levelResult.results.map((r, i) => (
+                  <li key={i}>
+                    <span className="font-medium">U{r.user_id}</span> / At.
+                    {r.activity_id}
+                    {r.updated ? ' — atualizado' : ''}: {r.message ?? '—'}
+                  </li>
                 ))}
-            </div>
+              </ul>
+            </details>
           )}
         </div>
       )}
