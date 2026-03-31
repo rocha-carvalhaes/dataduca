@@ -1,4 +1,5 @@
 ﻿from pathlib import Path
+
 p = Path("app/routes/user_levels.py")
 t = p.read_text(encoding="utf-8")
 old = """            games_count = max(
@@ -13,7 +14,7 @@ new = """            games_count = max(
             )
             if games_count == 0:
                 games_count = 10"""
-if "sessions_count" in t and "level_up_params.get(\"sessions_count\"" in t:
+if "sessions_count" in t and 'level_up_params.get("sessions_count"' in t:
     print("skip games_count")
 elif old in t:
     p.write_text(t.replace(old, new, 1), encoding="utf-8")

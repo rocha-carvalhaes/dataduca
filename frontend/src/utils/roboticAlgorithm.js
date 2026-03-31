@@ -9,8 +9,8 @@ export const CMD = {
 
 export const PALETTE = [
   { id: CMD.WALK, label: 'Andar', icon: '⬆️' },
-  { id: CMD.LEFT, label: 'Esquerda', icon: '↩️' },
-  { id: CMD.RIGHT, label: 'Direita', icon: '↪️' },
+  { id: CMD.LEFT, label: 'Esquerda', icon: '⤴️' },
+  { id: CMD.RIGHT, label: 'Direita', icon: '⤵️' },
   { id: CMD.COLLECT, label: 'Coletar', icon: '⭐' },
 ];
 

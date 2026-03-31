@@ -1,4 +1,5 @@
 ﻿from pathlib import Path
+
 ROOT = Path(__file__).resolve().parents[1]
 LEVEL_EVAL_APPEND = """
 
@@ -59,10 +60,16 @@ LEVEL_EVAL_APPEND = """
                 }
         return None
 """
+
+
 def main():
     le = ROOT / "app" / "core" / "level_evaluator.py"
     t = le.read_text(encoding="utf-8")
-    mark = "        return LevelEvaluator._check_writing_level(\n            recent_sessions[:down_count], down_required, max_acc, \"DOWN\"\n        )"
+    mark = (
+        "        return LevelEvaluator._check_writing_level(\n"
+        '            recent_sessions[:down_count], down_required, max_acc, "DOWN"\n'
+        "        )"
+    )
     if "evaluate_strong_password_activity" in t:
         print("skip level_evaluator")
         return
@@ -70,5 +77,7 @@ def main():
         raise SystemExit("marker not found")
     le.write_text(t.replace(mark, mark + LEVEL_EVAL_APPEND, 1), encoding="utf-8")
     print("patched level_evaluator")
+
+
 if __name__ == "__main__":
     main()

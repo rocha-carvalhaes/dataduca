@@ -1,4 +1,5 @@
 ﻿from pathlib import Path
+
 p = Path("app/routes/activity_sessions.py")
 t = p.read_text(encoding="utf-8")
 old = """            cur.execute(

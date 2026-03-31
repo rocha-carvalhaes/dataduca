@@ -1,4 +1,5 @@
 ﻿from pathlib import Path
+
 p = Path("app/routes/user_levels.py")
 t = p.read_text(encoding="utf-8")
 if "senha_forte" in t and "evaluate_strong_password_activity" in t:

@@ -1,4 +1,5 @@
 ﻿from pathlib import Path
+
 p = Path("app/routes/activities.py")
 t = p.read_text(encoding="utf-8")
 if "get_senha_forte_params" in t:

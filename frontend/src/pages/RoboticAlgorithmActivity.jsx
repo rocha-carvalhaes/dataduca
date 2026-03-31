@@ -10,7 +10,38 @@ import api from '../config/api';
 import { LoadingState, BackButton } from '../components/ui';
 import { CMD, PALETTE, runProgram, sleep } from '../utils/roboticAlgorithm';
 
-const DIR_ICONS = ['⬆️', '➡️', '⬇️', '⬅️'];
+/** Icon do bloco na paleta / programa (rotacoes nos comandos de virar). */
+function CommandBlockIcon({ cmdId, className = '' }) {
+  const entry = PALETTE.find((p) => p.id === cmdId);
+  const icon = entry?.icon ?? '•';
+  if (cmdId === CMD.LEFT) {
+    return (
+      <span
+        className={`inline-block leading-none ${className}`}
+        style={{ transform: 'rotate(-90deg)' }}
+        aria-hidden
+      >
+        {icon}
+      </span>
+    );
+  }
+  if (cmdId === CMD.RIGHT) {
+    return (
+      <span
+        className={`inline-block leading-none ${className}`}
+        style={{ transform: 'rotate(-90deg)' }}
+        aria-hidden
+      >
+        {icon}
+      </span>
+    );
+  }
+  return (
+    <span className={`leading-none ${className}`} aria-hidden>
+      {icon}
+    </span>
+  );
+}
 
 function RoboticAlgorithmActivity({
   onBack,
@@ -467,12 +498,12 @@ function RoboticAlgorithmActivity({
     'border border-slate-300/90 bg-gradient-to-b from-slate-100 to-[#d8e0ea] text-slate-800 shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_2px_4px_rgba(15,23,42,0.12)]';
 
   return (
-    <div className="px-2 pb-3 min-h-[min(87dvh,100dvh)] max-h-[100dvh] overflow-hidden flex flex-col">
-      <div className="shrink-0 sticky top-0 z-10 bg-[#F5F6F7] pt-2 pb-1 flex items-center">
+    <div className="relative flex min-h-[min(87dvh,100dvh)] max-h-[100dvh] flex-col overflow-hidden px-2 pb-3">
+      <div className="sticky top-0 z-10 flex shrink-0 items-center bg-[#F5F6F7] pt-2 pb-1">
         <BackButton onClick={onBack} />
       </div>
 
-      <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-2 lg:gap-3">
+      <div className="relative flex min-h-0 flex-1 flex-col gap-2 lg:flex-row lg:gap-3">
         <div className="shrink-0 w-full lg:basis-[232px] lg:min-w-[220px] lg:max-w-[268px] flex flex-col min-h-0 lg:min-h-0 lg:self-stretch border border-slate-300/80 rounded-lg bg-[#f4f4f5] p-2.5 font-mono text-sm">
           <div className="text-[11px] uppercase tracking-wide text-slate-600 font-semibold shrink-0">
             Blocos
@@ -485,7 +516,7 @@ function RoboticAlgorithmActivity({
                 onDragStart={(e) => handleDragStartPalette(e, b.id)}
                 className={`cursor-grab active:cursor-grabbing flex items-center gap-2 px-2.5 py-2 rounded-md text-sm select-none ${block3dPalette}`}
               >
-                <span className="text-xl leading-none">{b.icon}</span>
+                <CommandBlockIcon cmdId={b.id} className="text-xl" />
                 <span>{b.label}</span>
               </div>
             ))}
@@ -552,7 +583,7 @@ function RoboticAlgorithmActivity({
                 }`}
               >
                 <span className="text-lg leading-none">
-                  {PALETTE.find((p) => p.id === cmd)?.icon ?? '•'}
+                  <CommandBlockIcon cmdId={cmd} className="text-lg" />
                 </span>
                 <span className="flex-1">
                   {PALETTE.find((p) => p.id === cmd)?.label ?? cmd}
@@ -620,8 +651,14 @@ function RoboticAlgorithmActivity({
                         {isObs ? (
                           <span className="text-[1.15em]">🧱</span>
                         ) : robotHere ? (
-                          <span className="text-[1.1em]">
-                            {DIR_ICONS[robot.direction]}
+                          <span
+                            className="inline-block text-[1.1em] leading-none"
+                            style={{
+                              transform: `rotate(${-45 + robot.direction * 90}deg)`,
+                            }}
+                            aria-hidden
+                          >
+                            🚀
                           </span>
                         ) : hasStarLeft ? (
                           <span className="text-[1.1em]">⭐</span>
@@ -636,31 +673,38 @@ function RoboticAlgorithmActivity({
             </>
           )}
         </div>
+
+        {roundComplete && banner?.type === 'success' && (
+          <div
+            className="absolute inset-0 z-20 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-[1px]"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="robotic-success-title"
+          >
+            <div className="w-full max-w-sm rounded-xl border border-green-200 bg-white p-6 text-center shadow-xl">
+              <p
+                id="robotic-success-title"
+                className="text-base font-semibold text-green-900"
+              >
+                {banner.text}
+              </p>
+              <button
+                type="button"
+                onClick={goNextRound}
+                className="mt-5 w-full rounded-lg bg-green-600 py-3 text-sm font-semibold text-white shadow-sm hover:bg-green-700"
+              >
+                {currentRoundIndex + 1 >= roundsTotal
+                  ? 'Finalizar sessão'
+                  : 'Continuar'}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
-      {banner && (
-        <div
-          className={`mt-2 text-center text-sm px-2 py-2 rounded-md ${
-            banner.type === 'success'
-              ? 'bg-green-100 text-green-900 border border-green-300'
-              : 'bg-red-50 text-red-800 border border-red-200'
-          }`}
-        >
+      {banner && banner.type === 'error' && (
+        <div className="mt-2 rounded-md border border-red-200 bg-red-50 px-2 py-2 text-center text-sm text-red-800">
           {banner.text}
-        </div>
-      )}
-
-      {roundComplete && (
-        <div className="mt-2 flex justify-center">
-          <button
-            type="button"
-            onClick={goNextRound}
-            className="px-4 py-2 rounded-lg bg-[#E6A8D7] text-white font-medium text-sm"
-          >
-            {currentRoundIndex + 1 >= roundsTotal
-              ? 'Finalizar sessão'
-              : 'Continuar'}
-          </button>
         </div>
       )}
     </div>
