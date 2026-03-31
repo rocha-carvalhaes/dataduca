@@ -307,7 +307,7 @@ class RoboticAlgorithmParams(BaseModel):
         None,
         ge=1,
         le=10,
-        description="Nível atual na atividade (cenários filtrados por scenario_tier <= user_level).",
+        description="Nível atual (activity_params.level); cenários desse nível em level_params.scenarios.",
     )
 
 
@@ -411,6 +411,9 @@ async def get_robotic_algorithm_params(
     activity_id: Optional[int] = None,
     current_user: Optional[TokenData] = Depends(get_current_user),
 ):
+    # NOTA — Complementa create_activity_session para «algoritmo_robotico»: o cliente usa esta
+    # lista filtrada por nível; os índices por rodada gravados na sessão referem-se a esta
+    # mesma ordem (ver activity_sessions.create_activity_session). Padronização futura possível.
     from app.core.robotic_algorithm import (
         ALLOWED_COMMANDS,
         filter_scenarios_for_level,
@@ -462,6 +465,8 @@ async def get_robotic_algorithm_params(
                 ):
                     scenarios = disk if disk else []
                 scenarios = filter_scenarios_for_level(scenarios, user_level)
+                if not scenarios and disk:
+                    scenarios = filter_scenarios_for_level(disk, user_level)
                 cmds = params.get("commands") or default_params.commands
                 if not cmds:
                     cmds = list(ALLOWED_COMMANDS)

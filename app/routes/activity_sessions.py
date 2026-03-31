@@ -130,7 +130,21 @@ async def create_activity_session(  # noqa: C901
                 (session_data.activity_id,),
             )
             at_row = cur.fetchone()
+
+            # -------------------------------------------------------------------------
+            # NOTA — Padronização / otimização (2025+)
+            #
+            # Só «senha_forte» e «algoritmo_robotico» consultam activity_params aqui no POST.
+            # As demais atividades costumam obter regras só via endpoints dedicados (ex. GET
+            # .../params) ao abrir o ecrã. Isto é intencional: estas duas precisam de enriquecer
+            # «results» na criação (challenge determinístico; índices de cenário por rodada).
+            #
+            # Possível evolução: alinhar o robótico ao padrão «só GET», movendo o cálculo dos
+            # scenario_index para outro passo (ex. primeiro GET/PATCH após criar a sessão), com
+            # trade-offs documentados na discussão do projeto — não é só remover este bloco.
+            # -------------------------------------------------------------------------
             if at_row and at_row.get("activity_type") == "senha_forte":
+                # --- Senha forte: injetar challenge multi-rodada a partir de level_params ---
                 cur.execute(
                     """
                     SELECT ap.level_params
@@ -179,6 +193,7 @@ async def create_activity_session(  # noqa: C901
                         new_session["results"] = merged_results
 
             elif at_row and at_row.get("activity_type") == "algoritmo_robotico":
+                # --- Algoritmo robótico: fixar scenario_index por rodada (alinhado ao GET params) ---
                 cur.execute(
                     """
                     SELECT ap.level_params, ap.level
@@ -215,6 +230,18 @@ async def create_activity_session(  # noqa: C901
                 if not scenarios:
                     scenarios = load_default_scenarios_from_disk()
                 eligible = filter_scenarios_for_level(scenarios, user_level)
+                if not eligible:
+                    disk_full = load_default_scenarios_from_disk()
+                    if disk_full:
+                        eligible = filter_scenarios_for_level(disk_full, user_level)
+                if not eligible:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=(
+                            "Nenhum cenário disponível para este nível. "
+                            "Confirme que level_params.scenarios está preenchido em activity_params."
+                        ),
+                    )
                 try:
                     rt = int(lp.get("rounds_total", 3))
                 except (TypeError, ValueError):

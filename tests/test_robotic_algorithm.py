@@ -85,7 +85,21 @@ def test_filter_scenarios_for_level():
     assert len(f1) == 1
     assert f1[0]["scenario_tier"] == 1
     f3 = filter_scenarios_for_level(scenarios, 3)
-    assert len(f3) == 2
+    assert len(f3) == 1
+    assert f3[0]["scenario_tier"] == 3
+    f2 = filter_scenarios_for_level(scenarios, 2)
+    assert f2 == []
+
+
+def test_filter_scenarios_for_level_tierless_returns_all():
+    """Cenários já escopados por activity_params.level (sem scenario_tier no JSON)."""
+    scenarios = [
+        {"grid_size": 3, "robot_start": {"x": 0, "y": 0, "direction": 0}},
+        {"grid_size": 5, "robot_start": {"x": 1, "y": 1, "direction": 1}},
+    ]
+    out = filter_scenarios_for_level(scenarios, 7)
+    assert len(out) == 2
+    assert out[0]["grid_size"] == 3
 
 
 def test_pick_scenario_index_in_eligible():

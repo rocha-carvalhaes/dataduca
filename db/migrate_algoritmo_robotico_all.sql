@@ -1,7 +1,9 @@
 -- =============================================================================
 -- Algoritmo robótico — migração completa (idempotente)
 -- Execute: psql "$DATABASE_URL" -f db/migrate_algoritmo_robotico_all.sql
--- Cenários padrão: app/data/robotic_scenarios.json (API/sessão fazem merge se vazio)
+--
+-- Cenários: preencher level_params.scenarios em cada activity_params (níveis 1–10) via gestão
+-- de dados ou UPDATE manual; a API não usa ficheiros nem seed em código.
 -- =============================================================================
 
 INSERT INTO activities (activity_name, activity_description, activity_objective, activity_type, activity_icon, activity_version)

@@ -8,7 +8,6 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 # Comandos canónicos (API / final_program)
@@ -57,17 +56,26 @@ def infer_scenario_tier(scenario: Dict[str, Any]) -> int:
     return 1
 
 
+def _any_scenario_has_tier_field(scenarios: List[Dict[str, Any]]) -> bool:
+    """True se pelo menos um item tiver scenario_tier (ex.: lista global do ficheiro JSON)."""
+    return any(s.get("scenario_tier") is not None for s in scenarios)
+
+
 def filter_scenarios_for_level(
     scenarios: List[Dict[str, Any]], user_level: int
 ) -> List[Dict[str, Any]]:
     """
-    Cenários com scenario_tier <= nível do utilizador (desbloqueio progressivo).
+    - Cenários **sem** ``scenario_tier`` em nenhum item: lista já escopada por
+      ``activity_params.level`` — devolve a lista completa.
+    - Cenários **com** ``scenario_tier`` (ficheiro em disco com vários níveis):
+      mantém só os cujo tier coincide com o nível do utilizador.
     """
     if not scenarios:
         return []
     ul = max(1, min(10, int(user_level)))
-    eligible = [s for s in scenarios if infer_scenario_tier(s) <= ul]
-    return eligible if eligible else [scenarios[0]]
+    if not _any_scenario_has_tier_field(scenarios):
+        return list(scenarios)
+    return [s for s in scenarios if infer_scenario_tier(s) == ul]
 
 
 def pick_scenario_index_in_eligible(seed: int, eligible: List[Dict[str, Any]]) -> int:
@@ -155,16 +163,10 @@ def run_program(  # noqa: C901
 
 
 def load_default_scenarios_from_disk() -> List[Dict[str, Any]]:
-    """Carrega cenários predefinidos de app/data/robotic_scenarios.json."""
-    path = Path(__file__).resolve().parent.parent / "data" / "robotic_scenarios.json"
-    if not path.is_file():
-        return []
-    with open(path, encoding="utf-8") as f:
-        data = json.load(f)
-    if isinstance(data, list):
-        return data
-    if isinstance(data, dict) and "scenarios" in data:
-        return list(data["scenarios"])
+    """
+    Mantido por compatibilidade com rotas que fazem merge; devolve lista vazia.
+    Cenários vêm apenas de ``activity_params.level_params.scenarios`` na base de dados.
+    """
     return []
 
 
