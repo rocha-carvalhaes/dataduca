@@ -286,6 +286,7 @@ function TypingActivity({
       try {
         await api.activitySessions.update(activitySessionId, {
           results: gameData,
+          ended_at: new Date().toISOString(),
         });
         if (import.meta.env.DEV) {
           console.log('✅ Sessão de atividade atualizada com sucesso');

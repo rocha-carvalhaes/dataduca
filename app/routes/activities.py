@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 from psycopg2.extras import RealDictCursor
 import logging
 from dotenv import load_dotenv
@@ -296,6 +296,21 @@ class StrongPasswordParams(BaseModel):
     )
 
 
+class RoboticAlgorithmParams(BaseModel):
+    """Parâmetros expostos ao cliente — Algoritmo robótico."""
+
+    rounds_total: int = Field(3, ge=1, le=10)
+    scenarios: List[Dict[str, Any]] = Field(default_factory=list)
+    commands: List[str] = Field(default_factory=list)
+    using_defaults: bool = False
+    user_level: Optional[int] = Field(
+        None,
+        ge=1,
+        le=10,
+        description="Nível atual na atividade (cenários filtrados por scenario_tier <= user_level).",
+    )
+
+
 class SenhaForteValidateBody(BaseModel):
     activity_id: int
     activity_session_id: int
@@ -389,6 +404,85 @@ async def get_senha_forte_params(
         if conn:
             conn.close()
     return default_params.model_copy(update={"using_defaults": True})
+
+
+@router.get("/robotic-algorithm/params", response_model=RoboticAlgorithmParams)
+async def get_robotic_algorithm_params(
+    activity_id: Optional[int] = None,
+    current_user: Optional[TokenData] = Depends(get_current_user),
+):
+    from app.core.robotic_algorithm import (
+        ALLOWED_COMMANDS,
+        filter_scenarios_for_level,
+        load_default_scenarios_from_disk,
+    )
+
+    disk = load_default_scenarios_from_disk()
+    default_scenarios = filter_scenarios_for_level(disk, 1) if disk else []
+    default_params = RoboticAlgorithmParams(
+        rounds_total=3,
+        scenarios=default_scenarios,
+        commands=list(ALLOWED_COMMANDS),
+        using_defaults=True,
+        user_level=1,
+    )
+    if not activity_id:
+        return default_params
+    if current_user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Autenticação necessária para parâmetros personalizados desta atividade",
+        )
+    conn = None
+    try:
+        conn = get_db_connection()
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(
+                """
+                SELECT ap.level_params, ap.level
+                FROM user_activity_params uap
+                JOIN activity_params ap ON uap.activity_param_id = ap.activity_param_id
+                WHERE uap.user_id = %s
+                    AND ap.activity_id = %s
+                    AND uap.active = TRUE
+                    AND ap.active = TRUE
+                ORDER BY uap.initiated_at DESC
+                LIMIT 1
+                """,
+                (current_user.user_id, activity_id),
+            )
+            result = cur.fetchone()
+            if result and result["level_params"]:
+                params = result["level_params"]
+                user_level = int(result.get("level") or 1)
+                user_level = max(1, min(10, user_level))
+                scenarios = params.get("scenarios")
+                if scenarios is None or (
+                    isinstance(scenarios, list) and len(scenarios) == 0
+                ):
+                    scenarios = disk if disk else []
+                scenarios = filter_scenarios_for_level(scenarios, user_level)
+                cmds = params.get("commands") or default_params.commands
+                if not cmds:
+                    cmds = list(ALLOWED_COMMANDS)
+                return RoboticAlgorithmParams(
+                    rounds_total=int(
+                        params.get("rounds_total", default_params.rounds_total)
+                    ),
+                    scenarios=scenarios,
+                    commands=cmds,
+                    using_defaults=False,
+                    user_level=user_level,
+                )
+    except Exception as e:
+        logger.warning(
+            "Erro ao buscar parâmetros algoritmo robótico: %s. Retornando padrão.",
+            str(e),
+        )
+    finally:
+        if conn:
+            conn.close()
+    return default_params
 
 
 @router.post("/senha-forte/validate")

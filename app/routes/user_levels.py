@@ -175,6 +175,14 @@ async def evaluate_user_level(  # noqa: C901
                     recent_sessions, level_up_params, level_down_params
                 )
                 logger.info(f"Resultado avaliação senha forte: {evaluation}")
+            elif activity_type == "algoritmo_robotico":
+                evaluation = LevelEvaluator.evaluate_robotic_activity(
+                    recent_sessions,
+                    level_up_params,
+                    level_down_params,
+                    current_level,
+                )
+                logger.info(f"Resultado avaliação algoritmo robótico: {evaluation}")
             else:
                 logger.warning(f"Tipo de atividade '{activity_type}' não suportado")
                 return LevelUpdateResponse(
@@ -184,6 +192,13 @@ async def evaluate_user_level(  # noqa: C901
                     message=f"Tipo de atividade '{activity_type}' não suportado",
                     old_level=current_level,
                 )
+
+            if (
+                evaluation
+                and evaluation.get("action") == "level_down"
+                and current_level <= 1
+            ):
+                evaluation = None
 
             if evaluation:
                 # Determinar novo nível

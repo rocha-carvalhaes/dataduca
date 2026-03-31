@@ -526,3 +526,87 @@ class LevelEvaluator:
                     "sessions_evaluated": len(durs_down),
                 }
         return None
+
+    @staticmethod
+    def _collect_robotic_session_avgs(
+        sessions: List[dict], required_games: int
+    ) -> List[float]:
+        from app.core.robotic_algorithm import session_avg_moves_per_round
+
+        avgs: List[float] = []
+        for session in sessions:
+            results = session.get("results", {})
+            if isinstance(results, str):
+                results = json.loads(results)
+            avg = session_avg_moves_per_round(results)
+            if avg is not None:
+                avgs.append(avg)
+                if len(avgs) >= required_games:
+                    break
+        return avgs
+
+    @staticmethod
+    def evaluate_robotic_activity(
+        recent_sessions: List[dict],
+        level_up_params: dict,
+        level_down_params: dict,
+        current_level: int = 1,
+    ) -> Optional[dict]:
+        """
+        Sobe se média das médias (movimentos/rodada por sessão) <= max_avg_moves_per_round.
+        Desce se média >= min_avg_moves_per_round (nível 1 nunca desce).
+        """
+        if not recent_sessions:
+            return None
+
+        up_n = level_up_params.get("games_count", len(recent_sessions))
+        up_req = level_up_params.get("required_games", up_n)
+        max_up = level_up_params.get("max_avg_moves_per_round")
+        if max_up is None:
+            from app.core.robotic_algorithm import level_thresholds_for_level
+
+            max_up, _ = level_thresholds_for_level(current_level)
+        max_up = float(max_up) if max_up is not None else None
+
+        down_n = level_down_params.get("games_count", len(recent_sessions))
+        down_req = level_down_params.get("required_games", down_n)
+        min_down = level_down_params.get("min_avg_moves_per_round")
+        if min_down is None and current_level >= 2:
+            from app.core.robotic_algorithm import level_thresholds_for_level
+
+            _, min_down = level_thresholds_for_level(current_level)
+        min_down = float(min_down) if min_down is not None else None
+
+        up_sessions = recent_sessions[:up_n]
+        avgs_up = LevelEvaluator._collect_robotic_session_avgs(up_sessions, up_req)
+
+        # Não usar `if level_up_params:` — dict vazio {} é falsy em Python e bloqueava a avaliação.
+        if max_up is not None and len(avgs_up) >= up_req:
+            mean_up = sum(avgs_up[:up_req]) / up_req
+            if mean_up <= max_up:
+                return {
+                    "action": "level_up",
+                    "reason": "avg_moves_per_round_below_threshold",
+                    "avg_moves_per_round": mean_up,
+                    "threshold": max_up,
+                    "sessions_evaluated": up_req,
+                }
+
+        if current_level <= 1 or min_down is None:
+            return None
+
+        down_sessions = recent_sessions[:down_n]
+        avgs_down = LevelEvaluator._collect_robotic_session_avgs(
+            down_sessions, down_req
+        )
+        if min_down is not None and len(avgs_down) >= down_req:
+            mean_down = sum(avgs_down[:down_req]) / down_req
+            if mean_down >= min_down:
+                return {
+                    "action": "level_down",
+                    "reason": "avg_moves_per_round_above_threshold",
+                    "avg_moves_per_round": mean_down,
+                    "threshold": min_down,
+                    "sessions_evaluated": down_req,
+                }
+        return None

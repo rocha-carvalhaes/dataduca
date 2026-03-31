@@ -154,6 +154,12 @@ export const api = {
         : '/api/activities/senha-forte/params';
       return api.request(url);
     },
+    async getRoboticAlgorithmParams(activityId = null) {
+      const url = activityId
+        ? `/api/activities/robotic-algorithm/params?activity_id=${activityId}`
+        : '/api/activities/robotic-algorithm/params';
+      return api.request(url);
+    },
     async validateSenhaForte(body) {
       return api.request('/api/activities/senha-forte/validate', {
         method: 'POST',

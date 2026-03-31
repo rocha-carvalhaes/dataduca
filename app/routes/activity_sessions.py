@@ -178,6 +178,67 @@ async def create_activity_session(  # noqa: C901
                         new_session = dict(new_session)
                         new_session["results"] = merged_results
 
+            elif at_row and at_row.get("activity_type") == "algoritmo_robotico":
+                cur.execute(
+                    """
+                    SELECT ap.level_params, ap.level
+                    FROM user_activity_params uap
+                    JOIN activity_params ap ON uap.activity_param_id = ap.activity_param_id
+                    WHERE uap.user_id = %s AND ap.activity_id = %s
+                        AND uap.active = TRUE AND ap.active = TRUE
+                    ORDER BY uap.initiated_at DESC
+                    LIMIT 1
+                    """,
+                    (current_user.user_id, session_data.activity_id),
+                )
+                lp_row = cur.fetchone()
+                lp = {}
+                user_level = 1
+                if lp_row and lp_row.get("level_params"):
+                    lp = lp_row["level_params"]
+                    if isinstance(lp, str):
+                        lp = json.loads(lp)
+                    try:
+                        user_level = int(lp_row.get("level") or 1)
+                    except (TypeError, ValueError):
+                        user_level = 1
+                    user_level = max(1, min(10, user_level))
+                from app.core.robotic_algorithm import (
+                    filter_scenarios_for_level,
+                    initial_session_results,
+                    load_default_scenarios_from_disk,
+                    pick_scenario_index_in_eligible,
+                    scenario_seed,
+                )
+
+                scenarios = lp.get("scenarios") or []
+                if not scenarios:
+                    scenarios = load_default_scenarios_from_disk()
+                eligible = filter_scenarios_for_level(scenarios, user_level)
+                try:
+                    rt = int(lp.get("rounds_total", 3))
+                except (TypeError, ValueError):
+                    rt = 3
+                rounds_total = max(1, min(10, rt))
+                sid = new_session["activity_session_id"]
+                indices = []
+                for r in range(rounds_total):
+                    seed = scenario_seed(sid, current_user.user_id, r + 1)
+                    indices.append(pick_scenario_index_in_eligible(seed, eligible))
+                merged_results.update(
+                    initial_session_results(rounds_total, scenario_indices=indices)
+                )
+                cur.execute(
+                    """
+                    UPDATE activity_sessions
+                    SET results = %s
+                    WHERE activity_session_id = %s
+                    """,
+                    (json.dumps(merged_results), sid),
+                )
+                new_session = dict(new_session)
+                new_session["results"] = merged_results
+
             # Buscar informações adicionais para a resposta
             cur.execute(
                 """
@@ -299,15 +360,14 @@ async def update_activity_session(  # noqa: C901
                     results_to_save, lp, challenge=ch_server
                 )
 
-            # Atualizar a sessão com resultados e data de término
+            # Atualizar resultados; só alterar ended_at quando o cliente envia data
+            # (atualizações intermédias sem ended_at preservam a sessão aberta).
             update_query = "UPDATE activity_sessions SET results = %s"
             update_values = [json.dumps(results_to_save)]
 
-            if session_data.ended_at:
+            if session_data.ended_at is not None:
                 update_query += ", ended_at = %s"
                 update_values.append(session_data.ended_at)
-            else:
-                update_query += ", ended_at = NOW()"
 
             update_query += (
                 " WHERE activity_session_id = %s "

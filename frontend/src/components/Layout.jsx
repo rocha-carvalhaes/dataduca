@@ -7,6 +7,7 @@ import TypingActivity from '../pages/TypingActivity';
 import UnscramblePhrases from '../pages/UnscramblePhrases';
 import WritingActivity from '../pages/WritingActivity';
 import StrongPasswordActivity from '../pages/StrongPasswordActivity';
+import RoboticAlgorithmActivity from '../pages/RoboticAlgorithmActivity';
 import Manage from '../pages/Manage';
 import Documents from '../pages/Documents';
 import { authStorage } from '../utils/auth';
@@ -154,6 +155,15 @@ function Layout({ onLogout }) {
         case 'senha_forte':
           return (
             <StrongPasswordActivity
+              onBack={activityOnBack}
+              activityId={currentActivity.id}
+              onQuestActivityFinished={questFinishedCallback}
+              allowReplayAfterComplete={allowReplayAfterComplete}
+            />
+          );
+        case 'algoritmo_robotico':
+          return (
+            <RoboticAlgorithmActivity
               onBack={activityOnBack}
               activityId={currentActivity.id}
               onQuestActivityFinished={questFinishedCallback}
